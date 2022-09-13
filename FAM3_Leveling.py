@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 import glob
 import logging
 from logging.handlers import RotatingFileHandler
@@ -14,6 +14,7 @@ from PyQt5.QtGui import QDoubleValidator, QStandardItemModel, QIcon, QStandardIt
 from PyQt5.QtWidgets import QMainWindow, QMessageBox, QProgressBar, QPlainTextEdit, QWidget, QGridLayout, QGroupBox, QLineEdit, QSizePolicy, QToolButton, QLabel, QFrame, QListView, QMenuBar, QStatusBar, QPushButton, QApplication, QCalendarWidget, QVBoxLayout, QFileDialog, QCheckBox
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QObject, QThread, QRect, QSize, QDate
 import pandas as pd
+import cx_Oracle
 
 class QTextEditLogger(logging.Handler):
     def __init__(self, parent):
@@ -395,6 +396,7 @@ class Ui_MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setupUi()
+
         
     def setupUi(self):
         logger = logging.getLogger(__name__)
@@ -583,6 +585,10 @@ class Ui_MainWindow(QMainWindow):
         self.statusbar.setObjectName('statusbar')
         self.setStatusBar(self.statusbar)
         self.retranslateUi(self)
+        self.dateBtn.clicked.connect(self.selectStartDate)
+        self.emgFileInputBtn.clicked.connect(self.emgWindow)
+        self.holdFileInputBtn.clicked.connect(self.holdWindow)
+        self.runBtn.clicked.connect(self.startLeveling)
 
         #디버그용 플래그
         self.isDebug = True
@@ -613,7 +619,304 @@ class Ui_MainWindow(QMainWindow):
         self.emgFileInputBtn.setText(_translate('MainWindow', '리스트 입력'))
         self.holdFileInputBtn.setText(_translate('MainWindow', '리스트 입력'))
         self.labelBlank.setText(_translate('MainWindow', '            '))
+
+        try:
+            self.df_productTime = self.loadProductTimeDb()
+            # self.df_productTime.to_excel(r'.\result.xlsx')
+        except Exception as e:
+            logging.error('검사시간DB 불러오기에 실패했습니다. 관리자에게 문의해주세요.')
+            logging.exception(e, exc_info=True)      
+        try:
+            self.df_smt = self.loadSmtDb
+        except Exception as e:
+            logging.error('SMT Assy 재고량 DB 불러오기에 실패했습니다. 관리자에게 문의해주세요.')
+            logging.exception(e, exc_info=True)   
+
         logging.info('프로그램이 정상 기동했습니다')
+
+    def loadProductTimeDb(self):
+        location = r'.\\instantclient_21_6'
+        os.environ["PATH"] = location + ";" + os.environ["PATH"]
+        dsn = cx_Oracle.makedsn("ymzn-bdv19az029-rds.cgbtxsdj6fjy.ap-northeast-1.rds.amazonaws.com", 1521, "tprod")
+        db = cx_Oracle.connect("TEST_SCM","test_scm", dsn)
+
+        cursor= db.cursor()
+        cursor.execute("SELECT MODEL, COMPONENT_SET, MAEDZUKE, MAUNT, LEAD_CUTTING, VISUAL_EXAMINATION, PICKUP, ASSAMBLY, M_FUNCTION_CHECK, A_FUNCTION_CHECK, PERSON_EXAMINE, INSPECTION_EQUIPMENT FROM FAM3_PRODUCT_TIME_TB")
+        out_data = cursor.fetchall()
+        df_productTime = pd.DataFrame(out_data)
+        df_productTime.columns = ["MODEL", "COMPONENT_SET", "MAEDZUKE", "MAUNT", "LEAD_CUTTING", "VISUAL_EXAMINATION", "PICKUP", "ASSAMBLY", "M_FUNCTION_CHECK", "A_FUNCTION_CHECK", "PERSON_EXAMINE", "INSPECTION_EQUIPMENT"]
+        return df_productTime
+
+    def loadSmtDb(self):
+        location = r'.\\instantclient_21_6'
+        os.environ["PATH"] = location + ";" + os.environ["PATH"]
+        dsn = cx_Oracle.makedsn("10.36.15.42", 1521, "NEURON")
+        db = cx_Oracle.connect("ymi_user","ymi123!", dsn)
+
+        cursor= db.cursor()
+        cursor.execute("SELECT INV_D, PARTS_NO, CURRENT_INV_QTY FROM pdsg0040 where INV_D = TO_DATE(TO_CHAR(SYSDATE-1,'YYYYMMDD'),'YYYYMMDD')")
+        out_data = cursor.fetchall()
+        df_smt = pd.DataFrame(out_data)
+        df_smt.columns = ["출력일", "PARTS NO", "TOTAL 재고"]
+        return df_smt
+
+    def selectStartDate(self):
+        self.w = CalendarWindow()
+        self.w.submitClicked.connect(self.getStartDate)
+        self.w.show()
+    
+    @pyqtSlot()
+    def emgWindow(self):
+        self.w = UISubWindow()
+        self.w.submitClicked.connect(self.getEmgListview)
+        self.w.show()
+
+    @pyqtSlot()
+    def holdWindow(self):
+        self.w = UISubWindow()
+        self.w.submitClicked.connect(self.getHoldListview)
+        self.w.show()
+
+    def getEmgListview(self, list):
+        if len(list) > 0 :
+            self.listViewEmgLinkage.setModel(list[0])
+            self.listViewEmgmscode.setModel(list[1])
+            logging.info('긴급오더 리스트를 정상적으로 불러왔습니다.')
+        else:
+            logging.error('긴급오더 리스트가 없습니다. 다시 한번 확인해주세요')
+    
+    def getHoldListview(self, list):
+        if len(list) > 0 :
+            self.listViewHoldLinkage.setModel(list[0])
+            self.listViewHoldmscode.setModel(list[1])
+            logging.info('홀딩오더 리스트를 정상적으로 불러왔습니다.')
+        else:
+            logging.error('긴급오더 리스트가 없습니다. 다시 한번 확인해주세요')
+    def updateProgressbar(self, val):
+        self.progressbar.setValue(val)
+
+    def selectStartDate(self):
+        self.w = CalendarWindow()
+        self.w.submitClicked.connect(self.getStartDate)
+        self.w.show()
+    
+    def getStartDate(self, date):
+        if len(date) > 0 :
+            self.labelDate.setText(date)
+            logging.info('착공지정일이 %s 로 정상적으로 지정되었습니다.', date)
+        else:
+            logging.error('착공지정일이 선택되지 않았습니다.')
+
+    @pyqtSlot()
+    def startLeveling(self):
+        def loadMasterFile():
+            masterFileList = []
+            date = datetime.datetime.today().strftime('%Y%m%d')
+            if self.isDebug:
+                date = self.debugDate.text()
+
+            sosFilePath = r'.\\input\\Master_File\\' + date +r'\\SOS2.xlsx'
+            progressFilePath = r'.\\input\\Master_File\\' + date +r'\\진척.xlsx'
+            mainFilePath = r'.\\input\\Master_File\\' + date +r'\\MAIN.xlsx'
+            spFilePath = r'.\\input\\Master_File\\' + date +r'\\OTHER.xlsx'
+            powerFilePath = r'.\\input\\Master_File\\' + date +r'\\POWER.xlsx'
+            calendarFilePath = r'.\\Input\\Calendar_File\\FY' + date[2:4] + '_Calendar.xlsx'
+            smtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
+            usedSmtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
+
+            if os.path.exists(usedSmtAssyFilePath):
+                if os.path.exists(smtAssyFilePath):
+                    if os.path.exists(calendarFilePath):
+                        if os.path.exists(powerFilePath):
+                            if os.path.exists(spFilePath):
+                                if os.path.exists(mainFilePath):
+                                    if os.path.exists(progressFilePath):
+                                        if os.path.exists(sosFilePath):
+                                            sosFile = glob.glob(sosFilePath)[0]
+                                            progressFile = glob.glob(progressFilePath)[0]
+                                            mainFile = glob.glob(mainFilePath)[0]
+                                            spFile = glob.glob(spFilePath)[0]
+                                            powerFile = glob.glob(powerFilePath)[0]
+                                            calendarFile = glob.glob(calendarFilePath)[0]
+                                            smtAssyFile = glob.glob(smtAssyFilePath)[0]
+                                            masterFileList.append(sosFile)
+                                            masterFileList.append(progressFile)
+                                            masterFileList.append(mainFile)
+                                            masterFileList.append(spFile)
+                                            masterFileList.append(powerFile)
+                                            masterFileList.append(calendarFile)
+                                            masterFileList.append(smtAssyFile)
+                                            logging.info('마스터 파일 및 캘린더 파일을 정상적으로 불러왔습니다.')
+                                        else:
+                                            logging.error('%s 파일이 없습니다. 확인해주세요.', sosFilePath)
+                                            self.runBtn.setEnabled(True)
+                                    else:
+                                        logging.error('%s 파일이 없습니다. 확인해주세요.', progressFilePath)
+                                        self.runBtn.setEnabled(True)                               
+                                else:
+                                    logging.error('%s 파일이 없습니다. 확인해주세요.', mainFilePath)
+                                    self.runBtn.setEnabled(True)
+                            else:
+                                logging.error('%s 파일이 없습니다. 확인해주세요.', spFilePath)
+                                self.runBtn.setEnabled(True)
+                        else:
+                            logging.error('%s 파일이 없습니다. 확인해주세요.', powerFilePath)
+                            self.runBtn.setEnabled(True)
+                    else:
+                        logging.error('%s 파일이 없습니다. 확인해주세요.', calendarFilePath)
+                        self.runBtn.setEnabled(True)
+                else:
+                    logging.error('%s 파일이 없습니다. 확인해주세요.', smtAssyFilePath)
+                    self.runBtn.setEnabled(True)                
+            else:
+                logging.error('%s 파일이 없습니다. 확인해주세요.', usedSmtAssyFilePath)
+                self.runBtn.setEnabled(True)                    
+            return masterFileList
+        
+        def checkWorkDay(df, today, compDate):
+            dtToday = pd.to_datetime(datetime.datetime.strptime(today, '%Y%m%d'))
+            dtComp = pd.to_datetime(compDate, unit='s')
+            workDay = 0
+            for i in df.index:
+                dt = pd.to_datetime(df['Date'][i], unit='s')
+                if dtToday < dt and dt <= dtComp:
+                    if df['WorkingDay'][i] == 1:
+                        workDay += 1
+            return workDay
+
+        def delComma(value):
+            return str(value).split('.')[0]
+
+        def readDB(ip, port, sid, userName, password, sql):
+            location = r'.\\instantclient_21_6'
+            os.environ["PATH"] = location + ";" + os.environ["PATH"]
+            dsn = cx_Oracle.makedsn(ip, port, sid)
+            db = cx_Oracle.connect(userName, password, dsn)
+
+            cursor= db.cursor()
+            cursor.execute(sql)
+            out_data = cursor.fetchall()
+            df_oracle = pd.DataFrame(out_data)
+            col_names = [row[0] for row in cursor.description]
+            df_oracle.columns = [col_names]
+            return df_oracle
+
+        self.runBtn.setEnabled(False)   
+        pd.set_option('mode.chained_assignment', None)
+
+        list_masterFile = loadMasterFile()
+
+        mainOrderCnt = 0.0
+        spOrderCnt = 0.0
+        powerOrderCnt = 0.0
+
+        if len(self.mainOrderinput.text()) <= 0:
+            logging.info('메인기종 착공량이 입력되지 않아 메인기종 착공은 미실시 됩니다.')
+        else:
+            mainOrderCnt = float(self.mainOrderinput.text())
+        if len(self.spOrderinput.text()) <= 0:
+            logging.info('특수기종 착공량이 입력되지 않아 특수기종 착공은 미실시 됩니다.')
+        else:
+            spOrderCnt = float(self.spOrderinput.text())
+        if len(self.powerOrderinput.text()) <= 0:
+            logging.info('전원기종 착공량이 입력되지 않아 전원기종 착공은 미실시 됩니다.')            
+        else:
+            powerOrderCnt = float(self.powerOrderinput.text())
+
+        emgLinkage = [str(self.listViewEmgLinkage.model().data(self.listViewEmgLinkage.model().index(x,0))) for x in range(self.listViewEmgLinkage.model().rowCount())]
+        emgmscode = [self.listViewEmgmscode.model().data(self.listViewEmgmscode.model().index(x,0)) for x in range(self.listViewEmgmscode.model().rowCount())]
+        holdLinkage = [str(self.listViewHoldLinkage.model().data(self.listViewHoldLinkage.model().index(x,0))) for x in range(self.listViewHoldLinkage.model().rowCount())]
+        holdmscode = [self.listViewHoldmscode.model().data(self.listViewHoldmscode.model().index(x,0)) for x in range(self.listViewHoldmscode.model().rowCount())]        
+
+        df_emgLinkage = pd.DataFrame({'Linkage Number':emgLinkage})
+        df_emgmscode = pd.DataFrame({'MS Code':emgmscode})
+        df_holdLinkage = pd.DataFrame({'Linkage Number':holdLinkage})
+        df_holdmscode = pd.DataFrame({'MS Code':holdmscode})
+
+        df_emgLinkage['Linkage Number'] = df_emgLinkage['Linkage Number'].astype(np.int64)
+        df_holdLinkage['Linkage Number'] = df_holdLinkage['Linkage Number'].astype(np.int64)
+        df_emgLinkage['긴급오더'] = '대상'
+        df_emgmscode['긴급오더'] = '대상'
+        df_holdLinkage['홀딩오더'] = '대상'
+        df_holdmscode['홀딩오더'] = '대상'
+
+        df_levelingMain = pd.read_excel(list_masterFile[2])
+        df_levelingSp = pd.read_excel(list_masterFile[3])
+        df_levelingPower = pd.read_excel(list_masterFile[4])
+
+        df_levelingMainDropSEQ = df_levelingMain[df_levelingMain['Sequence No'].isnull()]
+        df_levelingMainUndepSeq = df_levelingMain[df_levelingMain['Sequence No']=='Undep']
+        df_levelingMainUncorSeq = df_levelingMain[df_levelingMain['Sequence No']=='Uncor']
+        df_levelingMain = pd.concat([df_levelingMainDropSEQ, df_levelingMainUndepSeq, df_levelingMainUncorSeq])
+        df_levelingMain = df_levelingMain.reset_index(drop=True)
+        df_levelingMain['미착공수량'] = df_levelingMain.groupby('Linkage Number')['Linkage Number'].transform('size')
+
+        df_levelingSpDropSEQ = df_levelingSp[df_levelingSp['Sequence No'].isnull()]
+        df_levelingSpUndepSeq = df_levelingSp[df_levelingSp['Sequence No']=='Undep']
+        df_levelingSpUncorSeq = df_levelingSp[df_levelingSp['Sequence No']=='Uncor']
+        df_levelingSp = pd.concat([df_levelingSpDropSEQ, df_levelingSpUndepSeq, df_levelingSpUncorSeq])
+        df_levelingSp = df_levelingSp.reset_index(drop=True)
+        df_levelingSp['미착공수량'] = df_levelingSp.groupby('Linkage Number')['Linkage Number'].transform('size')
+
+        df_levelingPowerDropSEQ = df_levelingPower[df_levelingPower['Sequence No'].isnull()]
+        df_levelingPowerUndepSeq = df_levelingPower[df_levelingPower['Sequence No']=='Undep']
+        df_levelingPowerUncorSeq = df_levelingPower[df_levelingPower['Sequence No']=='Uncor']
+        df_levelingPower = pd.concat([df_levelingPowerDropSEQ, df_levelingPowerUndepSeq, df_levelingPowerUncorSeq])
+        df_levelingPower = df_levelingPower.reset_index(drop=True)
+        df_levelingPower['미착공수량'] = df_levelingPower.groupby('Linkage Number')['Linkage Number'].transform('size')
+
+        if self.isDebug:
+            df_levelingMain.to_excel('.\\debug\\flow1_main.xlsx')
+            df_levelingSp.to_excel('.\\debug\\flow1_sp.xlsx')
+            df_levelingPower.to_excel('.\\debug\\flow1_power.xlsx')
+
+        df_progressFile = pd.read_excel(list_masterFile[1], skiprows=3)
+        
+        df_progressFile = df_progressFile.drop(df_progressFile.index[len(df_progressFile.index) - 2:])
+        df_progressFile['미착공수주잔'] = df_progressFile['수주\n수량'] - df_progressFile['생산\n지시\n수량']
+        df_progressFile['LINKAGE NO'] = df_progressFile['LINKAGE NO'].astype(str).apply(delComma)
+        # if self.isDebug:
+        #     df_progressFile.to_excel('.\\debug\\flow1.xlsx')
+
+        df_sosFile = pd.read_excel(list_masterFile[0])
+        df_sosFile['Linkage Number'] = df_sosFile['Linkage Number'].astype(str)
+        if self.isDebug:
+            df_sosFile.to_excel('.\\debug\\flow2.xlsx')
+
+        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('ZOTHER')].index)
+        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('YZ')].index)
+        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('SF')].index)
+        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('KM')].index)
+        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('TA80')].index)
+
+        if self.isDebug:
+            df_sosFile.to_excel('.\\debug\\flow3.xlsx')
+
+        df_sosFileMerge = pd.merge(df_sosFile, df_progressFile, left_on='Linkage Number', right_on='LINKAGE NO', how='left').drop_duplicates(['Linkage Number'])
+
+        df_sosFileMerge = df_sosFileMerge.sort_values(by=['Planned Prod. Completion date'],
+                                                        ascending=[True])
+        df_sosFileMerge = df_sosFileMerge.reset_index(drop=True)
+        
+        if self.isDebug:
+            df_sosFileMerge.to_excel('.\\debug\\flow4.xlsx')
+
+        yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y%m%d')
+        if self.isDebug:
+            yesterday = (datetime.datetime.strptime(self.debugDate.text(),'%Y%m%d') - datetime.timedelta(days=1)).strftime('%Y%m%d')
+
+        df_SmtAssyInven = readDB('10.36.15.42',
+                                1521,
+                                'NEURON',
+                                'ymi_user',
+                                'ymi123!',
+                                "SELECT INV_D, PARTS_NO, CURRENT_INV_QTY FROM pdsg0040 where INV_D = TO_DATE("+ str(yesterday) +",'YYYYMMDD')")
+
+        if self.isDebug:
+            df_SmtAssyInven.to_excel('.\\debug\\flow5.xlsx')
+
+        time.sleep(100)
+
 
 if __name__ == '__main__':
     import sys
