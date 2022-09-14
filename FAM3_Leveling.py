@@ -722,55 +722,65 @@ class Ui_MainWindow(QMainWindow):
             powerFilePath = r'.\\input\\Master_File\\' + date +r'\\POWER.xlsx'
             calendarFilePath = r'.\\Input\\Calendar_File\\FY' + date[2:4] + '_Calendar.xlsx'
             smtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
-            usedSmtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
+            # usedSmtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
+            secMainListFilePath = r'.\\input\\Master_File\\' + date +r'\\100L1311('+date[4:8]+')MAIN_2차.xlsx'
 
-            if os.path.exists(usedSmtAssyFilePath):
-                if os.path.exists(smtAssyFilePath):
-                    if os.path.exists(calendarFilePath):
-                        if os.path.exists(powerFilePath):
-                            if os.path.exists(spFilePath):
-                                if os.path.exists(mainFilePath):
-                                    if os.path.exists(progressFilePath):
-                                        if os.path.exists(sosFilePath):
-                                            sosFile = glob.glob(sosFilePath)[0]
-                                            progressFile = glob.glob(progressFilePath)[0]
-                                            mainFile = glob.glob(mainFilePath)[0]
-                                            spFile = glob.glob(spFilePath)[0]
-                                            powerFile = glob.glob(powerFilePath)[0]
-                                            calendarFile = glob.glob(calendarFilePath)[0]
-                                            smtAssyFile = glob.glob(smtAssyFilePath)[0]
-                                            masterFileList.append(sosFile)
-                                            masterFileList.append(progressFile)
-                                            masterFileList.append(mainFile)
-                                            masterFileList.append(spFile)
-                                            masterFileList.append(powerFile)
-                                            masterFileList.append(calendarFile)
-                                            masterFileList.append(smtAssyFile)
-                                            logging.info('마스터 파일 및 캘린더 파일을 정상적으로 불러왔습니다.')
+            if os.path.exists(secMainListFilePath):
+                # if os.path.exists(usedSmtAssyFilePath):
+                    if os.path.exists(smtAssyFilePath):
+                        if os.path.exists(calendarFilePath):
+                            if os.path.exists(powerFilePath):
+                                if os.path.exists(spFilePath):
+                                    if os.path.exists(mainFilePath):
+                                        if os.path.exists(progressFilePath):
+                                            if os.path.exists(sosFilePath):
+                                                sosFile = glob.glob(sosFilePath)[0]
+                                                progressFile = glob.glob(progressFilePath)[0]
+                                                mainFile = glob.glob(mainFilePath)[0]
+                                                spFile = glob.glob(spFilePath)[0]
+                                                powerFile = glob.glob(powerFilePath)[0]
+                                                calendarFile = glob.glob(calendarFilePath)[0]
+                                                smtAssyFile = glob.glob(smtAssyFilePath)[0]
+                                                # usedSmtAssyFile = glob.glob(usedSmtAssyFilePath)[0]
+                                                secMainListFile = glob.glob(secMainListFilePath)[0]
+                                                masterFileList.append(sosFile)
+                                                masterFileList.append(progressFile)
+                                                masterFileList.append(mainFile)
+                                                masterFileList.append(spFile)
+                                                masterFileList.append(powerFile)
+                                                masterFileList.append(calendarFile)
+                                                masterFileList.append(smtAssyFile)
+                                                # masterFileList.append(usedSmtAssyFile)
+                                                masterFileList.append(secMainListFile)
+
+                                                logging.info('마스터 파일 및 캘린더 파일을 정상적으로 불러왔습니다.')
+                                            else:
+                                                logging.error('%s 파일이 없습니다. 확인해주세요.', sosFilePath)
+                                                self.runBtn.setEnabled(True)
                                         else:
-                                            logging.error('%s 파일이 없습니다. 확인해주세요.', sosFilePath)
-                                            self.runBtn.setEnabled(True)
+                                            logging.error('%s 파일이 없습니다. 확인해주세요.', progressFilePath)
+                                            self.runBtn.setEnabled(True)                               
                                     else:
-                                        logging.error('%s 파일이 없습니다. 확인해주세요.', progressFilePath)
-                                        self.runBtn.setEnabled(True)                               
+                                        logging.error('%s 파일이 없습니다. 확인해주세요.', mainFilePath)
+                                        self.runBtn.setEnabled(True)
                                 else:
-                                    logging.error('%s 파일이 없습니다. 확인해주세요.', mainFilePath)
+                                    logging.error('%s 파일이 없습니다. 확인해주세요.', spFilePath)
                                     self.runBtn.setEnabled(True)
                             else:
-                                logging.error('%s 파일이 없습니다. 확인해주세요.', spFilePath)
+                                logging.error('%s 파일이 없습니다. 확인해주세요.', powerFilePath)
                                 self.runBtn.setEnabled(True)
                         else:
-                            logging.error('%s 파일이 없습니다. 확인해주세요.', powerFilePath)
+                            logging.error('%s 파일이 없습니다. 확인해주세요.', calendarFilePath)
                             self.runBtn.setEnabled(True)
                     else:
-                        logging.error('%s 파일이 없습니다. 확인해주세요.', calendarFilePath)
-                        self.runBtn.setEnabled(True)
-                else:
-                    logging.error('%s 파일이 없습니다. 확인해주세요.', smtAssyFilePath)
-                    self.runBtn.setEnabled(True)                
+                        logging.error('%s 파일이 없습니다. 확인해주세요.', smtAssyFilePath)
+                        self.runBtn.setEnabled(True)                
+                # else:
+                #     logging.error('%s 파일이 없습니다. 확인해주세요.', usedSmtAssyFilePath)
+                #     self.runBtn.setEnabled(True)       
             else:
-                logging.error('%s 파일이 없습니다. 확인해주세요.', usedSmtAssyFilePath)
-                self.runBtn.setEnabled(True)                    
+                logging.error('%s 파일이 없습니다. 확인해주세요.', secMainListFilePath)
+                self.runBtn.setEnabled(True)                          
             return masterFileList
         
         def checkWorkDay(df, today, compDate):
@@ -798,126 +808,152 @@ class Ui_MainWindow(QMainWindow):
             out_data = cursor.fetchall()
             df_oracle = pd.DataFrame(out_data)
             col_names = [row[0] for row in cursor.description]
-            df_oracle.columns = [col_names]
+            df_oracle.columns = col_names
             return df_oracle
-
+        def getSec(time_str):
+            time_str = re.sub(r'[^0-9:]', '', str(time_str))
+            if len(time_str) > 0:
+                h, m, s = time_str.split(':')
+                return int(h) * 3600 + int(m) * 60 + int(s)
+            else:
+                return 0
         self.runBtn.setEnabled(False)   
         pd.set_option('mode.chained_assignment', None)
 
-        list_masterFile = loadMasterFile()
+        try:
+            list_masterFile = loadMasterFile()
 
-        mainOrderCnt = 0.0
-        spOrderCnt = 0.0
-        powerOrderCnt = 0.0
+            # mainOrderCnt = 0.0
+            # spOrderCnt = 0.0
+            # powerOrderCnt = 0.0
 
-        if len(self.mainOrderinput.text()) <= 0:
-            logging.info('메인기종 착공량이 입력되지 않아 메인기종 착공은 미실시 됩니다.')
-        else:
-            mainOrderCnt = float(self.mainOrderinput.text())
-        if len(self.spOrderinput.text()) <= 0:
-            logging.info('특수기종 착공량이 입력되지 않아 특수기종 착공은 미실시 됩니다.')
-        else:
-            spOrderCnt = float(self.spOrderinput.text())
-        if len(self.powerOrderinput.text()) <= 0:
-            logging.info('전원기종 착공량이 입력되지 않아 전원기종 착공은 미실시 됩니다.')            
-        else:
-            powerOrderCnt = float(self.powerOrderinput.text())
+            # if len(self.mainOrderinput.text()) <= 0:
+            #     logging.info('메인기종 착공량이 입력되지 않아 메인기종 착공은 미실시 됩니다.')
+            # else:
+            #     mainOrderCnt = float(self.mainOrderinput.text())
+            # if len(self.spOrderinput.text()) <= 0:
+            #     logging.info('특수기종 착공량이 입력되지 않아 특수기종 착공은 미실시 됩니다.')
+            # else:
+            #     spOrderCnt = float(self.spOrderinput.text())
+            # if len(self.powerOrderinput.text()) <= 0:
+            #     logging.info('전원기종 착공량이 입력되지 않아 전원기종 착공은 미실시 됩니다.')            
+            # else:
+            #     powerOrderCnt = float(self.powerOrderinput.text())
 
-        emgLinkage = [str(self.listViewEmgLinkage.model().data(self.listViewEmgLinkage.model().index(x,0))) for x in range(self.listViewEmgLinkage.model().rowCount())]
-        emgmscode = [self.listViewEmgmscode.model().data(self.listViewEmgmscode.model().index(x,0)) for x in range(self.listViewEmgmscode.model().rowCount())]
-        holdLinkage = [str(self.listViewHoldLinkage.model().data(self.listViewHoldLinkage.model().index(x,0))) for x in range(self.listViewHoldLinkage.model().rowCount())]
-        holdmscode = [self.listViewHoldmscode.model().data(self.listViewHoldmscode.model().index(x,0)) for x in range(self.listViewHoldmscode.model().rowCount())]        
+            # emgLinkage = [str(self.listViewEmgLinkage.model().data(self.listViewEmgLinkage.model().index(x,0))) for x in range(self.listViewEmgLinkage.model().rowCount())]
+            # emgmscode = [self.listViewEmgmscode.model().data(self.listViewEmgmscode.model().index(x,0)) for x in range(self.listViewEmgmscode.model().rowCount())]
+            # holdLinkage = [str(self.listViewHoldLinkage.model().data(self.listViewHoldLinkage.model().index(x,0))) for x in range(self.listViewHoldLinkage.model().rowCount())]
+            # holdmscode = [self.listViewHoldmscode.model().data(self.listViewHoldmscode.model().index(x,0)) for x in range(self.listViewHoldmscode.model().rowCount())]        
 
-        df_emgLinkage = pd.DataFrame({'Linkage Number':emgLinkage})
-        df_emgmscode = pd.DataFrame({'MS Code':emgmscode})
-        df_holdLinkage = pd.DataFrame({'Linkage Number':holdLinkage})
-        df_holdmscode = pd.DataFrame({'MS Code':holdmscode})
+            # df_emgLinkage = pd.DataFrame({'Linkage Number':emgLinkage})
+            # df_emgmscode = pd.DataFrame({'MS Code':emgmscode})
+            # df_holdLinkage = pd.DataFrame({'Linkage Number':holdLinkage})
+            # df_holdmscode = pd.DataFrame({'MS Code':holdmscode})
 
-        df_emgLinkage['Linkage Number'] = df_emgLinkage['Linkage Number'].astype(np.int64)
-        df_holdLinkage['Linkage Number'] = df_holdLinkage['Linkage Number'].astype(np.int64)
-        df_emgLinkage['긴급오더'] = '대상'
-        df_emgmscode['긴급오더'] = '대상'
-        df_holdLinkage['홀딩오더'] = '대상'
-        df_holdmscode['홀딩오더'] = '대상'
+            # df_emgLinkage['Linkage Number'] = df_emgLinkage['Linkage Number'].astype(np.int64)
+            # df_holdLinkage['Linkage Number'] = df_holdLinkage['Linkage Number'].astype(np.int64)
+            # df_emgLinkage['긴급오더'] = '대상'
+            # df_emgmscode['긴급오더'] = '대상'
+            # df_holdLinkage['홀딩오더'] = '대상'
+            # df_holdmscode['홀딩오더'] = '대상'
 
-        df_levelingMain = pd.read_excel(list_masterFile[2])
-        df_levelingSp = pd.read_excel(list_masterFile[3])
-        df_levelingPower = pd.read_excel(list_masterFile[4])
+            # df_levelingMain = pd.read_excel(list_masterFile[2])
+            # df_levelingSp = pd.read_excel(list_masterFile[3])
+            # df_levelingPower = pd.read_excel(list_masterFile[4])
 
-        df_levelingMainDropSEQ = df_levelingMain[df_levelingMain['Sequence No'].isnull()]
-        df_levelingMainUndepSeq = df_levelingMain[df_levelingMain['Sequence No']=='Undep']
-        df_levelingMainUncorSeq = df_levelingMain[df_levelingMain['Sequence No']=='Uncor']
-        df_levelingMain = pd.concat([df_levelingMainDropSEQ, df_levelingMainUndepSeq, df_levelingMainUncorSeq])
-        df_levelingMain = df_levelingMain.reset_index(drop=True)
-        df_levelingMain['미착공수량'] = df_levelingMain.groupby('Linkage Number')['Linkage Number'].transform('size')
+            # df_levelingMainDropSEQ = df_levelingMain[df_levelingMain['Sequence No'].isnull()]
+            # df_levelingMainUndepSeq = df_levelingMain[df_levelingMain['Sequence No']=='Undep']
+            # df_levelingMainUncorSeq = df_levelingMain[df_levelingMain['Sequence No']=='Uncor']
+            # df_levelingMain = pd.concat([df_levelingMainDropSEQ, df_levelingMainUndepSeq, df_levelingMainUncorSeq])
+            # df_levelingMain = df_levelingMain.reset_index(drop=True)
+            # df_levelingMain['미착공수량'] = df_levelingMain.groupby('Linkage Number')['Linkage Number'].transform('size')
 
-        df_levelingSpDropSEQ = df_levelingSp[df_levelingSp['Sequence No'].isnull()]
-        df_levelingSpUndepSeq = df_levelingSp[df_levelingSp['Sequence No']=='Undep']
-        df_levelingSpUncorSeq = df_levelingSp[df_levelingSp['Sequence No']=='Uncor']
-        df_levelingSp = pd.concat([df_levelingSpDropSEQ, df_levelingSpUndepSeq, df_levelingSpUncorSeq])
-        df_levelingSp = df_levelingSp.reset_index(drop=True)
-        df_levelingSp['미착공수량'] = df_levelingSp.groupby('Linkage Number')['Linkage Number'].transform('size')
+            # df_levelingSpDropSEQ = df_levelingSp[df_levelingSp['Sequence No'].isnull()]
+            # df_levelingSpUndepSeq = df_levelingSp[df_levelingSp['Sequence No']=='Undep']
+            # df_levelingSpUncorSeq = df_levelingSp[df_levelingSp['Sequence No']=='Uncor']
+            # df_levelingSp = pd.concat([df_levelingSpDropSEQ, df_levelingSpUndepSeq, df_levelingSpUncorSeq])
+            # df_levelingSp = df_levelingSp.reset_index(drop=True)
+            # df_levelingSp['미착공수량'] = df_levelingSp.groupby('Linkage Number')['Linkage Number'].transform('size')
 
-        df_levelingPowerDropSEQ = df_levelingPower[df_levelingPower['Sequence No'].isnull()]
-        df_levelingPowerUndepSeq = df_levelingPower[df_levelingPower['Sequence No']=='Undep']
-        df_levelingPowerUncorSeq = df_levelingPower[df_levelingPower['Sequence No']=='Uncor']
-        df_levelingPower = pd.concat([df_levelingPowerDropSEQ, df_levelingPowerUndepSeq, df_levelingPowerUncorSeq])
-        df_levelingPower = df_levelingPower.reset_index(drop=True)
-        df_levelingPower['미착공수량'] = df_levelingPower.groupby('Linkage Number')['Linkage Number'].transform('size')
+            # df_levelingPowerDropSEQ = df_levelingPower[df_levelingPower['Sequence No'].isnull()]
+            # df_levelingPowerUndepSeq = df_levelingPower[df_levelingPower['Sequence No']=='Undep']
+            # df_levelingPowerUncorSeq = df_levelingPower[df_levelingPower['Sequence No']=='Uncor']
+            # df_levelingPower = pd.concat([df_levelingPowerDropSEQ, df_levelingPowerUndepSeq, df_levelingPowerUncorSeq])
+            # df_levelingPower = df_levelingPower.reset_index(drop=True)
+            # df_levelingPower['미착공수량'] = df_levelingPower.groupby('Linkage Number')['Linkage Number'].transform('size')
 
-        if self.isDebug:
-            df_levelingMain.to_excel('.\\debug\\flow1_main.xlsx')
-            df_levelingSp.to_excel('.\\debug\\flow1_sp.xlsx')
-            df_levelingPower.to_excel('.\\debug\\flow1_power.xlsx')
+            # # if self.isDebug:
+            # #     df_levelingMain.to_excel('.\\debug\\flow1_main.xlsx')
+            # #     df_levelingSp.to_excel('.\\debug\\flow1_sp.xlsx')
+            # #     df_levelingPower.to_excel('.\\debug\\flow1_power.xlsx')
 
-        df_progressFile = pd.read_excel(list_masterFile[1], skiprows=3)
-        
-        df_progressFile = df_progressFile.drop(df_progressFile.index[len(df_progressFile.index) - 2:])
-        df_progressFile['미착공수주잔'] = df_progressFile['수주\n수량'] - df_progressFile['생산\n지시\n수량']
-        df_progressFile['LINKAGE NO'] = df_progressFile['LINKAGE NO'].astype(str).apply(delComma)
-        # if self.isDebug:
-        #     df_progressFile.to_excel('.\\debug\\flow1.xlsx')
+            # df_progressFile = pd.read_excel(list_masterFile[1], skiprows=3)
+            
+            # df_progressFile = df_progressFile.drop(df_progressFile.index[len(df_progressFile.index) - 2:])
+            # df_progressFile['미착공수주잔'] = df_progressFile['수주\n수량'] - df_progressFile['생산\n지시\n수량']
+            # df_progressFile['LINKAGE NO'] = df_progressFile['LINKAGE NO'].astype(str).apply(delComma)
+            # # if self.isDebug:
+            # #     df_progressFile.to_excel('.\\debug\\flow1.xlsx')
 
-        df_sosFile = pd.read_excel(list_masterFile[0])
-        df_sosFile['Linkage Number'] = df_sosFile['Linkage Number'].astype(str)
-        if self.isDebug:
-            df_sosFile.to_excel('.\\debug\\flow2.xlsx')
+            # df_sosFile = pd.read_excel(list_masterFile[0])
+            # df_sosFile['Linkage Number'] = df_sosFile['Linkage Number'].astype(str)
+            # # if self.isDebug:
+            #     # df_sosFile.to_excel('.\\debug\\flow2.xlsx')
 
-        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('ZOTHER')].index)
-        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('YZ')].index)
-        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('SF')].index)
-        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('KM')].index)
-        df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('TA80')].index)
+            # df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('ZOTHER')].index)
+            # df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('YZ')].index)
+            # df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('SF')].index)
+            # df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('KM')].index)
+            # df_sosFile = df_sosFile.drop(df_sosFile[df_sosFile['MS Code'].str.contains('TA80')].index)
 
-        if self.isDebug:
-            df_sosFile.to_excel('.\\debug\\flow3.xlsx')
+            # # if self.isDebug:
+            #     # df_sosFile.to_excel('.\\debug\\flow3.xlsx')
 
-        df_sosFileMerge = pd.merge(df_sosFile, df_progressFile, left_on='Linkage Number', right_on='LINKAGE NO', how='left').drop_duplicates(['Linkage Number'])
+            # df_sosFileMerge = pd.merge(df_sosFile, df_progressFile, left_on='Linkage Number', right_on='LINKAGE NO', how='left').drop_duplicates(['Linkage Number'])
 
-        df_sosFileMerge = df_sosFileMerge.sort_values(by=['Planned Prod. Completion date'],
-                                                        ascending=[True])
-        df_sosFileMerge = df_sosFileMerge.reset_index(drop=True)
-        
-        if self.isDebug:
-            df_sosFileMerge.to_excel('.\\debug\\flow4.xlsx')
+            # df_sosFileMerge = df_sosFileMerge.sort_values(by=['Planned Prod. Completion date'],
+            #                                                 ascending=[True])
+            # df_sosFileMerge = df_sosFileMerge.reset_index(drop=True)
+            
+            # # if self.isDebug:
+            #     # df_sosFileMerge.to_excel('.\\debug\\flow4.xlsx')
 
-        yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y%m%d')
-        if self.isDebug:
-            yesterday = (datetime.datetime.strptime(self.debugDate.text(),'%Y%m%d') - datetime.timedelta(days=1)).strftime('%Y%m%d')
+            yesterday = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%Y%m%d')
+            if self.isDebug:
+                yesterday = (datetime.datetime.strptime(self.debugDate.text(),'%Y%m%d') - datetime.timedelta(days=1)).strftime('%Y%m%d')
 
-        df_SmtAssyInven = readDB('10.36.15.42',
-                                1521,
-                                'NEURON',
-                                'ymi_user',
-                                'ymi123!',
-                                "SELECT INV_D, PARTS_NO, CURRENT_INV_QTY FROM pdsg0040 where INV_D = TO_DATE("+ str(yesterday) +",'YYYYMMDD')")
+            df_SmtAssyInven = readDB('10.36.15.42',
+                                    1521,
+                                    'NEURON',
+                                    'ymi_user',
+                                    'ymi123!',
+                                    "SELECT INV_D, PARTS_NO, CURRENT_INV_QTY FROM pdsg0040 where INV_D = TO_DATE("+ str(yesterday) +",'YYYYMMDD')")
+            # df_SmtAssyInven.columns = ['INV_D','PARTS_NO','CURRENT_INV_QTY']
+            df_SmtAssyInven['현재수량'] = 0
+            print(df_SmtAssyInven)
+            # if self.isDebug:
+            #     df_SmtAssyInven.to_excel('.\\debug\\flow5.xlsx')
 
-        if self.isDebug:
-            df_SmtAssyInven.to_excel('.\\debug\\flow5.xlsx')
+            df_secOrderMainList = pd.read_excel(list_masterFile[7], skiprows=5)
+            # print(df_secOrderMainList)
+            df_joinSmt = pd.merge(df_secOrderMainList, df_SmtAssyInven, how = 'right', left_on='ASSY NO', right_on='PARTS_NO')
+            df_joinSmt['대수'] = df_joinSmt['대수'].fillna(0)
+            df_joinSmt['현재수량'] = df_joinSmt['CURRENT_INV_QTY'] - df_joinSmt['대수']
+            df_joinSmt.to_excel('.\\debug\\flow6.xlsx')
 
-        time.sleep(100)
-
-
+            df_productTime = readDB('ymzn-bdv19az029-rds.cgbtxsdj6fjy.ap-northeast-1.rds.amazonaws.com',
+                                    1521,
+                                    'TPROD',
+                                    'TEST_SCM',
+                                    'test_scm',
+                                    'SELECT * FROM FAM3_PRODUCT_TIME_TB')
+            df_productTime['TotalTime'] = df_productTime['COMPONENT_SET'].apply(getSec) + df_productTime['MAEDZUKE'].apply(getSec) + df_productTime['MAUNT'].apply(getSec) + df_productTime['LEAD_CUTTING'].apply(getSec) + df_productTime['VISUAL_EXAMINATION'].apply(getSec) + df_productTime['PICKUP'].apply(getSec) + df_productTime['ASSAMBLY'].apply(getSec) + df_productTime['M_FUNCTION_CHECK'].apply(getSec) + df_productTime['A_FUNCTION_CHECK'].apply(getSec) + df_productTime['PERSON_EXAMINE'].apply(getSec)
+            
+            df_productTime.to_excel('.\\debug\\flow7.xlsx')
+            # print(df_productTime.columns)
+        except Exception as e:
+            logging.exception(e, exc_info=True)                     
+            self.runBtn.setEnabled(True)
 if __name__ == '__main__':
     import sys
     app = QtWidgets.QApplication(sys.argv)
