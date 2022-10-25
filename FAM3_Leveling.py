@@ -1075,7 +1075,7 @@ class Ui_MainWindow(QMainWindow):
                 df_addSmtAssy['대표모델별_최소착공필요량_per_일'] = 0
                 dict_integCnt = {}
                 dict_minContCnt = {}
-
+                
                 for i in df_addSmtAssy.index:
                     if df_addSmtAssy['대표모델'][i] in dict_integCnt:
                         dict_integCnt[df_addSmtAssy['대표모델'][i]] += int(df_addSmtAssy['미착공수주잔'][i])
