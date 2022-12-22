@@ -59,7 +59,7 @@ class MainThread(QObject):
 
     # 디비 불러오기 공통내부함수
     def readDB(self, ip, port, sid, userName, password, sql):
-        location = r'.\\instantclient_21_6'
+        location = r'.\\instantclient_21_7'
         os.environ["PATH"] = location + ";" + os.environ["PATH"]
         dsn = cx_Oracle.makedsn(ip, port, sid)
         db = cx_Oracle.connect(userName, password, dsn)
@@ -319,13 +319,7 @@ class MainThread(QObject):
                                 else:
                                     break
                         if moduleMaxCnt < 0:
-                            df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
-                                                                                    alarmDetailNo,
-                                                                                    '기타2',
-                                                                                    df_input,
-                                                                                    i,
-                                                                                    '-',
-                                                                                    0)
+                            df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '기타2', df_input, i, '-', 0)
                             break
                     # 긴급오더 or 당일착공이 아닌 경우는 검사설비 능력을 반영하여 착공 실시
                     else:
@@ -410,7 +404,7 @@ class MainThread(QObject):
             df_levelingMain = df_levelingMain.reset_index(drop=True)
             df_levelingMain['미착공수주잔'] = df_levelingMain.groupby('Linkage Number')['Linkage Number'].transform('size')
             df_levelingMain['특수대상'] = ''
-            df_spCondition = pd.read_excel(self.list_masterFile[9])
+            df_spCondition = pd.read_excel(self.list_masterFile[7])
             df_ateP = df_spCondition[df_spCondition['검사호기'] == 'P']
             df_ateP['특수대상'] = '대상'
             list_ateP = df_ateP['MODEL'].tolist()
@@ -479,9 +473,7 @@ class MainThread(QObject):
             df_MergeLink['당일착공'] = ''
             # 남은 워킹데이 체크 및 컬럼 추가
             for i in df_MergeLink.index:
-                df_MergeLink['남은 워킹데이'][i] = self.checkWorkDay(dfCalendar,
-                                                                    today,
-                                                                    df_MergeLink['Planned Prod. Completion date'][i])
+                df_MergeLink['남은 워킹데이'][i] = self.checkWorkDay(dfCalendar, today, df_MergeLink['Planned Prod. Completion date'][i])
                 if df_MergeLink['남은 워킹데이'][i] < 0:
                     df_MergeLink['긴급오더'][i] = '대상'
                 elif df_MergeLink['남은 워킹데이'][i] == 0:
@@ -508,7 +500,7 @@ class MainThread(QObject):
             if self.isDebug:
                 df_SmtAssyInven.to_excel('.\\debug\\Main\\flow5.xlsx')
             # 2차 메인피킹 리스트 불러오기 및 Smt Assy 재고량 Df와 Join
-            df_secOrderMainList = pd.read_excel(self.list_masterFile[6], skiprows=5)
+            df_secOrderMainList = pd.read_excel(self.list_masterFile[5], skiprows=5)
             df_joinSmt = pd.merge(df_secOrderMainList, df_SmtAssyInven, how='right', left_on='ASSY NO', right_on='PARTS_NO')
             df_joinSmt['대수'] = df_joinSmt['대수'].fillna(0)
             # Smt Assy 현재 재고량에서 사용량 차감
@@ -579,21 +571,14 @@ class MainThread(QObject):
                 df_ATEList.to_excel('.\\debug\\Main\\flow8.xlsx')
             dict_ate = {}
             max_ateCnt = 0
-            overTime = 0
-            # 잔업에 대한 체크
-            if self.cb_main == '잔업없음':
-                overTime = 0
-            else:
-                overTime = int(re.sub(r'[^0-9]', '', str(self.cb_main)))
+            # 검사설비 능력
+            overTime = int(re.sub(r'[^0-9]', '', str(self.cb_main)))
             # 각 검사설비를 Key로 검사시간을 Dict화 (잔업까지 적용)
             for i in df_ATEList.index:
                 if max_ateCnt < len(str(df_ATEList['INSPECTION_EQUIPMENT'][i])):
                     max_ateCnt = len(str(df_ATEList['INSPECTION_EQUIPMENT'][i]))
                 for j in df_ATEList['INSPECTION_EQUIPMENT'][i]:
-                    if overTime == 0:
-                        dict_ate[j] = 460 * 60
-                    else:
-                        dict_ate[j] = (460 + (60 * overTime)) * 60
+                    dict_ate[j] = (60 * overTime) * 60
             # 대표모델 별 검사시간 및 검사설비를 Join
             df_sosAddMainModel = pd.merge(df_MergeLink, df_productTime[['대표모델', 'TotalTime', 'INSPECTION_EQUIPMENT']], on='대표모델', how='left')
             df_sosAddMainModel = df_sosAddMainModel[~df_sosAddMainModel['INSPECTION_EQUIPMENT'].str.contains('None')]
@@ -973,7 +958,7 @@ class PowerThread(QObject):
 
     # 디비 불러오기 공통내부함수
     def readDB(self, ip, port, sid, userName, password, sql):
-        location = r'C:\instantclient_21_6'
+        location = r'.\\instantclient_21_7'
         os.environ["PATH"] = location + ";" + os.environ["PATH"]
         dsn = cx_Oracle.makedsn(ip, port, sid)
         db = cx_Oracle.connect(userName, password, dsn)
@@ -1213,7 +1198,7 @@ class PowerThread(QObject):
                                 if not isRemain:
                                     df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '2', df_input, i, '-', df_input['미착공수주잔'][i] - df_input[resultCol1][i])
                                 dict_ratioCnt[str(df_input['그룹'][i]) + '_' + df_input['MODEL'][i]] = 0
-                        elif dict_ratioCnt[str(df_input['그룹'][i]) + '_' + df_input['MODEL'][i]] >= float(df_input['SMT반영_착공량_잔여'][i]) * df_input['공수'][i]:
+                        elif dict_ratioCnt[str(df_input['그룹'][i]) + '_' + df_input['MODEL'][i]] >= float(df_input[instCol][i]) * df_input['공수'][i]:
                             df_input[resultCol2][i] = self.moduleMaxCnt
                             df_input[resultCol1][i] = math.ceil(self.moduleMaxCnt / df_input['공수'][i])
                             self.moduleMaxCnt = 0
@@ -1330,8 +1315,7 @@ class PowerThread(QObject):
             self.powerReturnPb.emit(progress)
             if self.isDebug:
                 df_SmtAssyInven.to_excel('.\\debug\\Power\\flow5.xlsx')
-
-            df_secOrderMainList = pd.read_excel(self.list_masterFile[6], skiprows=5)
+            df_secOrderMainList = pd.read_excel(self.list_masterFile[5], skiprows=5)
             df_joinSmt = pd.merge(df_secOrderMainList, df_SmtAssyInven, how='right', left_on='ASSY NO', right_on='PARTS_NO')
             df_joinSmt['대수'] = df_joinSmt['대수'].fillna(0)
             df_joinSmt['현재수량'] = df_joinSmt['CURRENT_INV_QTY'] - df_joinSmt['대수']
@@ -1353,9 +1337,7 @@ class PowerThread(QObject):
             df_pdbs = df_pdbs[~df_pdbs['SMT_MS_CODE'].str.contains('BMS')]
             df_pdbs = df_pdbs[~df_pdbs['SMT_MS_CODE'].str.contains('WEB')]
             gb = df_pdbs.groupby('SMT_MS_CODE')
-            df_temp = pd.DataFrame([df_pdbs.loc[gb.groups[n],
-                                    'SMT_SMT_ASSY'].values for n in gb.groups],
-                                    index=gb.groups.keys())
+            df_temp = pd.DataFrame([df_pdbs.loc[gb.groups[n], 'SMT_SMT_ASSY'].values for n in gb.groups], index=gb.groups.keys())
             df_temp.columns = ['ROW' + str(i + 1) for i in df_temp.columns]
             rowNo = len(df_temp.columns)
             df_temp = df_temp.reset_index()
@@ -1469,18 +1451,14 @@ class PowerThread(QObject):
             df_addSmtAssyPower = df_addSmtAssy.copy()
             df_addSmtAssyPower['Linkage Number'] = df_addSmtAssyPower['Linkage Number'].astype(str)
             df_addSmtAssyPower['MODEL'] = df_addSmtAssyPower['MS Code'].str[:4]
-            df_powerCondition = pd.read_excel(self.list_masterFile[8])
+            df_powerCondition = pd.read_excel(self.list_masterFile[6])
             df_powerCondition['그룹'] = df_powerCondition['그룹'].fillna(method='ffill')
             df_powerCondition['최대허용비율'] = df_powerCondition['최대허용비율'].fillna(method='ffill')
-            df_mergeCondition = pd.merge(df_addSmtAssyPower,
-                                            df_powerCondition,
-                                            on='MODEL',
-                                            how='left')
+            df_mergeCondition = pd.merge(df_addSmtAssyPower, df_powerCondition, on='MODEL', how='left')
             progress += round(maxPb / 20)
             self.powerReturnPb.emit(progress)
             if self.isDebug:
                 df_mergeCondition.to_excel('.\\debug\\Power\\flow11-1.xlsx')
-            dict_group = {}
             dict_manHours = {}
             dict_ratioCnt = {}
             df_mergeCondition['설비능력반영_착공공수'] = 0
@@ -1488,9 +1466,6 @@ class PowerThread(QObject):
             df_mergeCondition['설비능력반영_착공량'] = 0
             df_mergeCondition['설비능력반영_착공량_잔여'] = 0
             for i in df_powerCondition.index:
-                if df_powerCondition['그룹'][i] not in dict_group.keys():
-                    dict_group[df_powerCondition['그룹'][i]] = []
-                dict_group[df_powerCondition['그룹'][i]].append(df_powerCondition['MODEL'][i])
                 dict_manHours[df_powerCondition['MODEL'][i]] = float(df_powerCondition['공수'][i])
                 dict_ratioCnt[str(df_powerCondition['그룹'][i]) + '_' + df_powerCondition['MODEL'][i]] = round(float(df_powerCondition['최대허용비율'][i]) * self.moduleMaxCnt)
             df_mergeCondition, dict_ratioCnt, alarmDetailNo, df_alarmDetail = self.ratioReflectInst(df_mergeCondition,
@@ -1778,7 +1753,7 @@ class SpThread(QObject):
 
     # 디비 불러오기 공통내부함수
     def readDB(self, ip, port, sid, userName, password, sql):
-        location = r'C:\\instantclient_21_6'
+        location = r'.\\instantclient_21_7'
         os.environ["PATH"] = location + ";" + os.environ["PATH"]
         dsn = cx_Oracle.makedsn(ip, port, sid)
         db = cx_Oracle.connect(userName, password, dsn)
@@ -1915,44 +1890,20 @@ class SpThread(QObject):
                 else:
                     break
             minCnt = 9999
+            isManageSMT = True
+            for j in range(1, rowCnt + 1):
+                if str(df_input[f'SMT비관리대상{str(j)}'][i]) == 'True':
+                    isManageSMT = False
             for j in range(1, rowCnt + 1):
                 smtAssyName = str(df_input[f'ROW{str(j)}'][i])
                 if (df_input['MS Code'][i] != 'nan' and df_input['MS Code'][i] != 'None' and df_input['MS Code'][i] != ''):
                     if (smtAssyName != '' and smtAssyName != 'None' and smtAssyName != 'nan'):
-                        if df_input['긴급오더'][i] == '대상' or df_input['당일착공'][i] == '대상':
-                            if dict_smtCnt[smtAssyName] < 0:
-                                diffCnt = df_input['미착공수주잔'][i]
-                                if dict_smtCnt[smtAssyName] + df_input['미착공수주잔'][i] > 0:
-                                    diffCnt = 0 - dict_smtCnt[smtAssyName]
-                                if not isRemain:
-                                    if dict_smtCnt[smtAssyName] > 0:
-                                        df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
-                                                                                                alarmDetailNo,
-                                                                                                '1',
-                                                                                                df_input,
-                                                                                                i,
-                                                                                                smtAssyName,
-                                                                                                diffCnt)
-                            else:
-                                minCnt = 0
-                                df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
-                                                                                        alarmDetailNo,
-                                                                                        '기타3',
-                                                                                        df_input,
-                                                                                        i,
-                                                                                        smtAssyName,
-                                                                                        0)
-                        else:
-                            if smtAssyName in dict_smtCnt:
-                                if dict_smtCnt[smtAssyName] >= df_input[instCol][i]:
-                                    if minCnt > df_input[instCol][i]:
-                                        minCnt = df_input[instCol][i]
-                                else:
-                                    if dict_smtCnt[smtAssyName] > 0:
-                                        if minCnt > dict_smtCnt[smtAssyName]:
-                                            minCnt = dict_smtCnt[smtAssyName]
-                                    else:
-                                        minCnt = 0
+                        if isManageSMT:
+                            if df_input['긴급오더'][i] == '대상' or df_input['당일착공'][i] == '대상':
+                                if dict_smtCnt[smtAssyName] < 0:
+                                    diffCnt = df_input['미착공수주잔'][i]
+                                    if dict_smtCnt[smtAssyName] + df_input['미착공수주잔'][i] > 0:
+                                        diffCnt = 0 - dict_smtCnt[smtAssyName]
                                     if not isRemain:
                                         if dict_smtCnt[smtAssyName] > 0:
                                             df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
@@ -1961,16 +1912,45 @@ class SpThread(QObject):
                                                                                                     df_input,
                                                                                                     i,
                                                                                                     smtAssyName,
-                                                                                                    df_input[instCol][i] - dict_smtCnt[smtAssyName])
+                                                                                                    diffCnt)
+                                else:
+                                    minCnt = 0
+                                    df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
+                                                                                            alarmDetailNo,
+                                                                                            '기타3',
+                                                                                            df_input,
+                                                                                            i,
+                                                                                            smtAssyName,
+                                                                                            0)
                             else:
-                                minCnt = 0
-                                df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
-                                                                                        alarmDetailNo,
-                                                                                        '기타3',
-                                                                                        df_input,
-                                                                                        i,
-                                                                                        smtAssyName,
-                                                                                        0)
+                                if smtAssyName in dict_smtCnt:
+                                    if dict_smtCnt[smtAssyName] >= df_input[instCol][i]:
+                                        if minCnt > df_input[instCol][i]:
+                                            minCnt = df_input[instCol][i]
+                                    else:
+                                        if dict_smtCnt[smtAssyName] > 0:
+                                            if minCnt > dict_smtCnt[smtAssyName]:
+                                                minCnt = dict_smtCnt[smtAssyName]
+                                        else:
+                                            minCnt = 0
+                                        if not isRemain:
+                                            if dict_smtCnt[smtAssyName] > 0:
+                                                df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
+                                                                                                        alarmDetailNo,
+                                                                                                        '1',
+                                                                                                        df_input,
+                                                                                                        i,
+                                                                                                        smtAssyName,
+                                                                                                        df_input[instCol][i] - dict_smtCnt[smtAssyName])
+                                else:
+                                    minCnt = 0
+                                    df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
+                                                                                            alarmDetailNo,
+                                                                                            '기타3',
+                                                                                            df_input,
+                                                                                            i,
+                                                                                            smtAssyName,
+                                                                                            0)
                 else:
                     minCnt = 0
                     df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail,
@@ -2117,8 +2097,8 @@ class SpThread(QObject):
             df_levelingSp = df_levelingSp.reset_index(drop=True)
             df_levelingSp['미착공수주잔'] = df_levelingSp.groupby('Linkage Number')['Linkage Number'].transform('size')
             # 비모듈 레벨링 리스트 불러오기 - 경로에 파일이 있으면 불러올것
-            if Path(self.list_masterFile[11]).is_file():
-                df_levelingBL = pd.read_excel(self.list_masterFile[11])
+            if Path(self.list_masterFile[9]).is_file():
+                df_levelingBL = pd.read_excel(self.list_masterFile[9])
                 df_levelingBLDropSeq = df_levelingBL[df_levelingBL['Sequence No'].isnull()]
                 df_levelingBLUndepSeq = df_levelingBL[df_levelingBL['Sequence No'] == 'Undep']
                 df_levelingBLUncorSeq = df_levelingBL[df_levelingBL['Sequence No'] == 'Uncor']
@@ -2128,8 +2108,8 @@ class SpThread(QObject):
                 df_levelingBL = df_levelingBL.reset_index(drop=True)
                 df_levelingBL['미착공수주잔'] = df_levelingBL.groupby('Linkage Number')['Linkage Number'].transform('size')
                 df_levelingSp = pd.concat([df_levelingSp, df_levelingBL])
-            if Path(self.list_masterFile[12]).is_file():
-                df_levelingTerminal = pd.read_excel(self.list_masterFile[12])
+            if Path(self.list_masterFile[10]).is_file():
+                df_levelingTerminal = pd.read_excel(self.list_masterFile[10])
                 df_levelingTerminalDropSeq = df_levelingTerminal[df_levelingTerminal['Sequence No'].isnull()]
                 df_levelingTerminalUndepSeq = df_levelingTerminal[df_levelingTerminal['Sequence No'] == 'Undep']
                 df_levelingTerminalUncorSeq = df_levelingTerminal[df_levelingTerminal['Sequence No'] == 'Uncor']
@@ -2139,6 +2119,17 @@ class SpThread(QObject):
                 df_levelingTerminal = df_levelingTerminal.reset_index(drop=True)
                 df_levelingTerminal['미착공수주잔'] = df_levelingTerminal.groupby('Linkage Number')['Linkage Number'].transform('size')
                 df_levelingSp = pd.concat([df_levelingSp, df_levelingTerminal])
+            if Path(self.list_masterFile[11]).is_file():
+                df_levelingSlave = pd.read_excel(self.list_masterFile[11])
+                df_levelingSlaveDropSeq = df_levelingSlave[df_levelingSlave['Sequence No'].isnull()]
+                df_levelingSlaveUndepSeq = df_levelingSlave[df_levelingSlave['Sequence No'] == 'Undep']
+                df_levelingSlaveUncorSeq = df_levelingSlave[df_levelingSlave['Sequence No'] == 'Uncor']
+                df_levelingSlave = pd.concat([df_levelingSlaveDropSeq, df_levelingSlaveUndepSeq, df_levelingSlaveUncorSeq])
+                df_levelingSlave['모듈 구분'] = '모듈'
+                df_levelingSlave['Linkage Number'] = df_levelingSlave['Linkage Number'].astype(str)
+                df_levelingSlave = df_levelingSlave.reset_index(drop=True)
+                df_levelingSlave['미착공수주잔'] = df_levelingSlave.groupby('Linkage Number')['Linkage Number'].transform('size')
+                df_levelingSp = pd.concat([df_levelingSp, df_levelingSlave])
             progress += round(maxPb / 20)
             self.spReturnPb.emit(progress)
             if self.isDebug:
@@ -2174,8 +2165,7 @@ class SpThread(QObject):
             df_sosFileMerge = df_sosFileMerge[['Linkage Number', 'MS Code', 'Planned Prod. Completion date', 'Order Quantity', '미착공수주잔', '모듈 구분']]
             df_sosFileMerge = df_sosFileMerge[df_sosFileMerge['미착공수주잔'] != 0]
             # 위 파일을 완성지정일 기준 오름차순 정렬 및 인덱스 재설정
-            df_sosFileMerge = df_sosFileMerge.sort_values(by=['Planned Prod. Completion date'],
-                                                            ascending=[True])
+            df_sosFileMerge = df_sosFileMerge.sort_values(by=['Planned Prod. Completion date'], ascending=[True])
             df_sosFileMerge = df_sosFileMerge.reset_index(drop=True)
             # 대표모델 Column 생성
             df_sosFileMerge['대표모델'] = df_sosFileMerge['MS Code'].str[:9]
@@ -2216,7 +2206,7 @@ class SpThread(QObject):
                                     'ymi123!',
                                     "SELECT INV_D, PARTS_NO, CURRENT_INV_QTY FROM pdsg0040 where INV_D = TO_DATE(" + str(yesterday) + ",'YYYYMMDD')")
             df_SmtAssyInven['현재수량'] = 0
-            df_secOrderMainList = pd.read_excel(self.list_masterFile[6], skiprows=5)
+            df_secOrderMainList = pd.read_excel(self.list_masterFile[5], skiprows=5)
             df_joinSmt = pd.merge(df_secOrderMainList, df_SmtAssyInven, how='right', left_on='ASSY NO', right_on='PARTS_NO')
             df_joinSmt['대수'] = df_joinSmt['대수'].fillna(0)
             df_joinSmt['현재수량'] = df_joinSmt['CURRENT_INV_QTY'] - df_joinSmt['대수']
@@ -2230,7 +2220,8 @@ class SpThread(QObject):
                     df_joinSmt['현재수량'][i] = 0
                 dict_smtCnt[df_joinSmt['PARTS_NO'][i]] = df_joinSmt['현재수량'][i]
             # PB01: S9221DS, TA40: S9091BU 재고량 미확인 모델 dict_smtCnt 추가
-            # df_smtUnCheck = pd.read_excel(self.list_masterFile[10])
+            df_smtUnCheck = pd.read_excel(self.list_masterFile[8])
+            list_nonManageSmt = df_smtUnCheck['SMT ASSY'].tolist()
             # MSCode_ASSY DB불러오기
             df_pdbs = self.readDB('10.36.15.42',
                                 1521,
@@ -2246,9 +2237,7 @@ class SpThread(QObject):
             if self.isDebug:
                 df_pdbs.to_excel('.\\debug\\Sp\\flow6.xlsx')
             gb = df_pdbs.groupby('SMT_MS_CODE')
-            df_temp = pd.DataFrame([df_pdbs.loc[gb.groups[n],
-                                    'SMT_SMT_ASSY'].values for n in gb.groups],
-                                    index=gb.groups.keys())
+            df_temp = pd.DataFrame([df_pdbs.loc[gb.groups[n], 'SMT_SMT_ASSY'].values for n in gb.groups], index=gb.groups.keys())
             df_temp.columns = ['ROW' + str(i + 1) for i in df_temp.columns]
             rowNo = len(df_temp.columns)
             df_temp = df_temp.reset_index()
@@ -2320,35 +2309,22 @@ class SpThread(QObject):
                 df_addSmtAssy.to_excel('.\\debug\\Sp\\flow10.xlsx')
             # SMT 잔여수량 적용
             df_addSmtAssy['SMT반영_착공량'] = 0
-            df_alarmDetail = pd.DataFrame(columns=["No.", "분류", "L/N", "MS CODE", "SMT ASSY",
-                                                    "수주수량",
-                                                    "부족수량",
-                                                    "검사호기(그룹)",
-                                                    "대상 검사시간(초)",
-                                                    "필요시간(초)",
-                                                    "완성예정일"])
+            pattern = '|'.join(list_nonManageSmt)
+            for j in range(1, rowNo):
+                df_addSmtAssy[f'SMT비관리대상{str(j)}'] = df_addSmtAssy[f'ROW{str(j)}'].str.contains(pattern, case=False)
+            if self.isDebug:
+                df_addSmtAssy.to_excel('.\\debug\\Sp\\flow10-1.xlsx')
+            df_alarmDetail = pd.DataFrame(columns=["No.", "분류", "L/N", "MS CODE", "SMT ASSY", "수주수량", "부족수량", "검사호기(그룹)", "대상 검사시간(초)", "필요시간(초)", "완성예정일"])
             alarmDetailNo = 1
-            df_addSmtAssy, dict_smtCnt, alarmDetailNo, df_alarmDetail = self.smtReflectInst(df_addSmtAssy,
-                                                                                            False,
-                                                                                            dict_smtCnt,
-                                                                                            alarmDetailNo,
-                                                                                            df_alarmDetail,
-                                                                                            rowNo)
-
+            df_addSmtAssy, dict_smtCnt, alarmDetailNo, df_alarmDetail = self.smtReflectInst(df_addSmtAssy, False, dict_smtCnt, alarmDetailNo, df_alarmDetail, rowNo)
             df_addSmtAssy['SMT반영_착공량_잔여'] = 0
-            df_addSmtAssy, dict_smtCnt, alarmDetailNo, df_alarmDetail = self.smtReflectInst(df_addSmtAssy,
-                                                                                            True,
-                                                                                            dict_smtCnt,
-                                                                                            alarmDetailNo,
-                                                                                            df_alarmDetail,
-                                                                                            rowNo)
+            df_addSmtAssy, dict_smtCnt, alarmDetailNo, df_alarmDetail = self.smtReflectInst(df_addSmtAssy, True, dict_smtCnt, alarmDetailNo, df_alarmDetail, rowNo)
             progress += round(maxPb / 20)
             self.spReturnPb.emit(progress)
             if self.isDebug:
                 df_addSmtAssy.to_excel('.\\debug\\Sp\\flow11.xlsx')
-
             # 특수 기종분류표 반영 착공 로직 start
-            df_condition = pd.read_excel(self.list_masterFile[9])
+            df_condition = pd.read_excel(self.list_masterFile[7])
             df_condition['No'] = df_condition['No'].fillna(method='ffill')
             df_condition['1차_MAX_그룹'] = df_condition['1차_MAX_그룹'].fillna(method='ffill')
             df_condition['2차_MAX_그룹'] = df_condition['2차_MAX_그룹'].fillna(method='ffill')
@@ -2392,7 +2368,6 @@ class SpThread(QObject):
                 df_addSmtAssy['1차_MAX_그룹'] = df_addSmtAssy['1차_MAX_그룹'].fillna('-')
                 df_addSmtAssy['2차_MAX_그룹'] = df_addSmtAssy['2차_MAX_그룹'].fillna('-')
                 df_addSmtAssy['공수'] = df_addSmtAssy['공수'].fillna(1)
-
             df_addSmtAssy = df_addSmtAssy.sort_values(by=['Planned Prod. Completion date'], ascending=[True])
             df_addSmtAssy = df_addSmtAssy.reset_index(drop=True)
             progress += round(maxPb / 20)
@@ -2541,7 +2516,6 @@ class SpThread(QObject):
             # 각 검사장치별로 사이클 그룹을 작성하고, 최대 사이클과 비교하여 각 사이클그룹에서 배수처리
             for i in df_mergeOrderResult.index:
                 if df_mergeOrderResult['긴급오더'][i] != '대상':
-                    # multiCnt = math.floor(maxCycle/df_mergeOrderResult['검사장치Cnt'][i])
                     multiCnt = maxCycle / df_mergeOrderResult['대표모델Cnt'][i]
                     if i == 0:
                         df_mergeOrderResult['사이클그룹'][i] = cycleGr
@@ -2972,10 +2946,7 @@ class UISubWindow(QMainWindow):
     @pyqtSlot()
     def addmscodeExcel(self):
         try:
-            fileName = QFileDialog.getOpenFileName(self,
-                                                    'Open File',
-                                                    './',
-                                                    'Excel Files (*.xlsx)')[0]
+            fileName = QFileDialog.getOpenFileName(self, 'Open File', './', 'Excel Files (*.xlsx)')[0]
             if fileName != "":
                 df = pd.read_excel(fileName)
                 for i in df.index:
@@ -3015,13 +2986,7 @@ class Ui_MainWindow(QMainWindow):
         self.setupUi()
 
     def setupUi(self):
-        # logger = logging.getLogger(__name__)
-        rfh = RotatingFileHandler(filename='./Log.log',
-                                    mode='a',
-                                    maxBytes=5 * 1024 * 1024,
-                                    backupCount=2,
-                                    encoding=None,
-                                    delay=0)
+        rfh = RotatingFileHandler(filename='./Log.log', mode='a', maxBytes=5 * 1024 * 1024, backupCount=2, encoding=None, delay=0)
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s:%(levelname)s:%(message)s', datefmt='%m/%d/%Y %H:%M:%S', handlers=[rfh])
         self.setObjectName('MainWindow')
         self.resize(900, 1000)
@@ -3120,8 +3085,7 @@ class Ui_MainWindow(QMainWindow):
         self.progressbar_power.setFormat('전원라인 진행률')
         self.gridLayout3.addWidget(self.progressbar_power, 13, 1, 1, 2)
         self.runBtn = QToolButton(self.groupBox)
-        sizePolicy = QSizePolicy(QSizePolicy.Ignored,
-                                    QSizePolicy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.runBtn.sizePolicy().hasHeightForWidth())
@@ -3212,7 +3176,7 @@ class Ui_MainWindow(QMainWindow):
         self.holdFileInputBtn.clicked.connect(self.holdWindow)
         self.runBtn.clicked.connect(self.startLeveling)
         # 디버그용 플래그
-        self.isDebug = False
+        self.isDebug = True
         self.isFileReady = False
         if self.isDebug:
             self.debugDate = QLineEdit(self.groupBox)
@@ -3235,7 +3199,7 @@ class Ui_MainWindow(QMainWindow):
         self.label9.setText(_translate('MainWindow', '특수(모듈) 생산대수:'))
         self.label19.setText(_translate('MainWindow', '특수(비모듈) 생산대수:'))
         self.label10.setText(_translate('MainWindow', '전원 생산대수:'))
-        self.label11.setText(_translate('MainWindow', '메인 잔업시간:'))
+        self.label11.setText(_translate('MainWindow', '메인라인 검사설비 가동시간:'))
         self.runBtn.setText(_translate('MainWindow', '실행'))
         self.label2.setText(_translate('MainWindow', '긴급오더 입력 :'))
         self.label3.setText(_translate('MainWindow', '홀딩오더 입력 :'))
@@ -3249,7 +3213,10 @@ class Ui_MainWindow(QMainWindow):
         self.emgFileInputBtn.setText(_translate('MainWindow', '리스트 입력'))
         self.holdFileInputBtn.setText(_translate('MainWindow', '리스트 입력'))
         self.labelBlank.setText(_translate('MainWindow', '            '))
-        self.cb_main.addItems(['잔업없음', '1시간', '2시간', '3시간', '4시간'])
+        list_cb = []
+        for i in range(1, 13):
+            list_cb.append(f'{str(i)}시간')
+        self.cb_main.addItems(list_cb)
         maxOrderInputFilePath = r'.\\착공량입력.xlsx'
         if not os.path.exists(maxOrderInputFilePath):
             logging.error('%s 파일이 없습니다. 착공량을 수동으로 입력해주세요.', maxOrderInputFilePath)
@@ -3298,10 +3265,6 @@ class Ui_MainWindow(QMainWindow):
             logging.info('홀딩오더 리스트를 정상적으로 불러왔습니다.')
         else:
             logging.error('홀딩오더 리스트가 없습니다. 다시 한번 확인해주세요')
-
-    # 프로그레스바 갱신
-    def updateProgressbar(self, val):
-        self.progressbar.setValue(val)
 
     # 착공지정일 가져오기
     def getStartDate(self, date):
@@ -3390,9 +3353,7 @@ class Ui_MainWindow(QMainWindow):
         spFilePath = r'.\\input\\Master_File\\' + date + r'\\OTHER.xlsx'
         powerFilePath = r'.\\input\\Master_File\\' + date + r'\\POWER.xlsx'
         calendarFilePath = r'.\\Input\\Calendar_File\\FY' + date[2:4] + '_Calendar.xlsx'
-        smtAssyFilePath = r'.\\input\\DB\\MSCode_SMT_Assy.xlsx'
         secMainListFilePath = r'.\\input\\Master_File\\' + date + r'\\100L1311(' + date[4:8] + ')MAIN_2차.xlsx'
-        inspectFacFilePath = r'.\\input\\DB\\Inspect_Fac.xlsx'
         powerCondFilePath = r'.\\input\\DB\\Power\\FAM3_Power_MST_Table.xlsx'
         spCondFilePath = r'.\\input\\DB\\Sp\\FAM3_Sp_MST_Table.xlsx'
         smtAssyUnCheckFilePath = r'.\\input\\DB\\SP\\SMT수량_비관리대상.xlsx'
@@ -3404,20 +3365,22 @@ class Ui_MainWindow(QMainWindow):
             nonSpTerminalFilePath = r'.\\input\\Master_File\\' + date + r'\\TERMINAL.xlsx'
         else:
             nonSpTerminalFilePath = r'.\\input\\Master_File\\' + date + r'\\'
+        if os.path.exists(r'.\\input\\Master_File\\' + date + r'\\SLAVE.xlsx'):
+            SpSlaveFilePath = r'.\\input\\Master_File\\' + date + r'\\SLAVE.xlsx'
+        else:
+            SpSlaveFilePath = r'.\\input\\Master_File\\' + date + r'\\'
         pathList = [sosFilePath,
                     mainFilePath,
                     spFilePath,
                     powerFilePath,
                     calendarFilePath,
-                    smtAssyFilePath,
                     secMainListFilePath,
-                    inspectFacFilePath,
                     powerCondFilePath,
                     spCondFilePath,
                     smtAssyUnCheckFilePath,
                     nonSpBLFilePath,
-                    nonSpTerminalFilePath
-                    ]
+                    nonSpTerminalFilePath,
+                    SpSlaveFilePath]
         for path in pathList:
             if os.path.exists(path):
                 file = glob.glob(path)[0]
@@ -3514,7 +3477,7 @@ class Ui_MainWindow(QMainWindow):
                 logging.info('전원기종 착공량이 입력되지 않아 전원기종 착공은 미실시 됩니다.')
         else:
             self.enableRunBtn()
-            logging.warning('필수 파일이 없어 더이상 진행할 수 없습니다.')
+            logging.warning('필수 파일이 없어 더 이상 진행할 수 없습니다.')
 
 
 if __name__ == '__main__':
