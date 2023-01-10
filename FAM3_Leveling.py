@@ -162,7 +162,7 @@ class MainThread(QObject):
                                                                 "필요시간(초)": 0,
                                                                 "완성예정일": df_data['Planned Prod. Completion date'][index]}])])
         elif category == '기타3':
-            return pd.concat([df_target,
+            df_result = pd.concat([df_target,
                                 pd.DataFrame.from_records([{"No.": no,
                                                             "분류": category,
                                                             "L/N": df_data['Linkage Number'][index],
@@ -170,6 +170,19 @@ class MainThread(QObject):
                                                             "SMT ASSY": smtAssy,
                                                             "수주수량": df_data['미착공수주잔'][index],
                                                             "부족수량": 0,
+                                                            "검사호기": '-',
+                                                            "대상 검사시간(초)": 0,
+                                                            "필요시간(초)": 0,
+                                                            "완성예정일": df_data['Planned Prod. Completion date'][index]}])])
+        elif category == '기타4':
+            df_result = pd.concat([df_target,
+                                pd.DataFrame.from_records([{"No.": no,
+                                                            "분류": category,
+                                                            "L/N": df_data['Linkage Number'][index],
+                                                            "MS CODE": df_data['MS Code'][index],
+                                                            "SMT ASSY": smtAssy,
+                                                            "수주수량": df_data['미착공수주잔'][index],
+                                                            "부족수량": shortageCnt,
                                                             "검사호기": '-',
                                                             "대상 검사시간(초)": 0,
                                                             "필요시간(초)": 0,
@@ -266,7 +279,7 @@ class MainThread(QObject):
         return [df_input, dict_smtCnt, alarmDetailNo, df_alarmDetail]
 
     # 검사설비 반영 착공로직
-    def ateReflectInst(self, df_input, isRemain, dict_ate, df_alarmDetail, alarmDetailNo, moduleMaxCnt):
+    def ateReflectInst(self, df_input, isRemain, dict_ate, df_alarmDetail, alarmDetailNo, moduleMaxCnt, limitCtCnt):
         """
         Args:
             df_input(DataFrame)         : 입력 DataFrame
@@ -310,38 +323,45 @@ class MainThread(QObject):
                                     if df_input['특수대상'][i] != '대상':
                                         moduleMaxCnt -= df_input[tempAteCnt][i]
                                     df_input[tempAteCnt][i] = 0
+                                    if '/CT' in df_input['MS Code'][i]:
+                                        limitCtCnt -= df_input[tempAteCnt][i]
                                     break
                                 else:
                                     break
                         if moduleMaxCnt < 0:
                             df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '기타2', df_input, i, '-', 0)
+                        if limitCtCnt < 0:
+                            df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '기타4', df_input, i, '-', 0)
                             # break
                     # 긴급오더 or 당일착공이 아닌 경우는 검사설비 능력을 반영하여 착공 실시
                     else:
                         if moduleMaxCnt < 0:
                             moduleMaxCnt = 0
+                        if limitCtCnt < 0:
+                            limitCtCnt = 0
+                        isFirst = True
                         for ate in df_input['INSPECTION_EQUIPMENT'][i]:
                             if tempTime < dict_ate[ate]:
                                 tempTime = dict_ate[ate]
                                 ateName = ate
                                 if ate == df_input['INSPECTION_EQUIPMENT'][i][0]:
-                                    df_input[tempAteCnt][i] = df_input[smtReflectCnt][i]
+                                    compareList = [df_input[smtReflectCnt][i], moduleMaxCnt]
+                                    if not isFirst:
+                                        compareList.append(df_input[tempAteCnt][i])
+                                    if '/CT' in df_input['MS Code'][i]:
+                                        compareList.append(limitCtCnt)
+                                    df_input[tempAteCnt][i] = min(compareList)
+
                                 if df_input[tempAteCnt][i] != 0:
                                     if dict_ate[ateName] >= df_input['TotalTime'][i] * df_input[tempAteCnt][i]:
-                                        if moduleMaxCnt >= df_input[tempAteCnt][i]:
-                                            dict_ate[ateName] -= df_input['TotalTime'][i] * df_input[tempAteCnt][i]
-                                            df_input[ateReflectCnt][i] += df_input[tempAteCnt][i]
-                                            if df_input['특수대상'][i] != '대상':
-                                                moduleMaxCnt -= df_input[tempAteCnt][i]
-                                            df_input[tempAteCnt][i] = 0
-                                            break
-                                        else:
-                                            dict_ate[ateName] -= df_input['TotalTime'][i] * moduleMaxCnt
-                                            df_input[ateReflectCnt][i] += moduleMaxCnt
-                                            df_input[tempAteCnt][i] -= moduleMaxCnt
-                                            if df_input['특수대상'][i] != '대상':
-                                                moduleMaxCnt = 0
-                                            break
+                                        dict_ate[ateName] -= df_input['TotalTime'][i] * df_input[tempAteCnt][i]
+                                        df_input[ateReflectCnt][i] += df_input[tempAteCnt][i]
+                                        if df_input['특수대상'][i] != '대상':
+                                            moduleMaxCnt -= df_input[tempAteCnt][i]
+                                        if '/CT' in df_input['MS Code'][i]:
+                                            limitCtCnt -= df_input[tempAteCnt][i]
+                                        df_input[tempAteCnt][i] = 0
+                                        break
                                     elif dict_ate[ateName] >= df_input['TotalTime'][i]:
                                         tempCnt = int(df_input[tempAteCnt][i])
                                         for j in range(tempCnt, 0, -1):
@@ -352,12 +372,19 @@ class MainThread(QObject):
                                                     df_input[tempAteCnt][i] = tempCnt - j
                                                     if df_input['특수대상'][i] != '대상':
                                                         moduleMaxCnt -= j
+                                                    if '/CT' in df_input['MS Code'][i]:
+                                                        limitCtCnt -= j
+                                                    isFirst = False
                                                     break
                                 else:
                                     break
             if not isRemain and (df_input[smtReflectCnt][i] > df_input[ateReflectCnt][i]) and moduleMaxCnt > 0:
-                df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '2', df_input, i, '-', df_input[smtReflectCnt][i] - df_input[ateReflectCnt][i])
-        return [df_input, dict_ate, alarmDetailNo, df_alarmDetail, moduleMaxCnt]
+                if '/CT' not in df_input['MS Code'][i]:
+                    df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '2', df_input, i, '-', df_input[smtReflectCnt][i] - df_input[ateReflectCnt][i])
+                elif limitCtCnt == 0 and df_input[smtReflectCnt][i] > 0:
+                    df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '기타4', df_input, i, '-', df_input[smtReflectCnt][i] - df_input[ateReflectCnt][i])
+
+        return [df_input, dict_ate, alarmDetailNo, df_alarmDetail, moduleMaxCnt, limitCtCnt]
 
     def run(self):
         # pandas 경고없애기 옵션 적용
@@ -521,8 +548,8 @@ class MainThread(QObject):
                                             'TEST_SCM',
                                             'test_scm',
                                             'SELECT * FROM FAM3_PRODUCT_TIME_TB')
-            # 전체 생산시간을 계산
-            df_productTime['TotalTime'] = (df_productTime['COMPONENT_SET'].apply(self.getSec) + df_productTime['MAEDZUKE'].apply(self.getSec) + df_productTime['MAUNT'].apply(self.getSec) + df_productTime['LEAD_CUTTING'].apply(self.getSec) + df_productTime['VISUAL_EXAMINATION'].apply(self.getSec) + df_productTime['PICKUP'].apply(self.getSec) + df_productTime['ASSAMBLY'].apply(self.getSec) + df_productTime['M_FUNCTION_CHECK'].apply(self.getSec) + df_productTime['A_FUNCTION_CHECK'].apply(self.getSec) + df_productTime['PERSON_EXAMINE'].apply(self.getSec))
+            # 전체 검사시간을 계산
+            df_productTime['TotalTime'] = (df_productTime['M_FUNCTION_CHECK'].apply(self.getSec) + df_productTime['A_FUNCTION_CHECK'].apply(self.getSec))
             # 대표모델 컬럼생성 및 중복 제거
             df_productTime['대표모델'] = df_productTime['MODEL'].str[:9]
             df_productTime = df_productTime.drop_duplicates(['대표모델'])
@@ -673,14 +700,18 @@ class MainThread(QObject):
             if self.isDebug:
                 df_priority.to_excel('.\\debug\\Main\\flow11-1.xlsx')
                 df_unPriority.to_excel('.\\debug\\Main\\flow11-2.xlsx')
+
+            df_limitCtCond = pd.read_excel(self.list_masterFile[13])
+            limitCtCnt = df_limitCtCond[df_limitCtCond['상세구분'] == 'MAIN']['허용수량'].values[0]
+
             # 설비능력 반영 착공량 계산
-            df_priority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt = self.ateReflectInst(df_priority, False, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt)
+            df_priority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt, limitCtCnt = self.ateReflectInst(df_priority, False, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt, limitCtCnt)
             # 잔여 착공량에 대해 설비능력 반영 착공량 계산
-            df_priority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt = self.ateReflectInst(df_priority, True, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt)
+            df_priority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt, limitCtCnt = self.ateReflectInst(df_priority, True, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt, limitCtCnt)
             # 설비능력 반영 착공량 계산
-            df_unPriority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt = self.ateReflectInst(df_unPriority, False, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt)
+            df_unPriority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt, limitCtCnt = self.ateReflectInst(df_unPriority, False, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt, limitCtCnt)
             # 잔여 착공량에 대해 설비능력 반영 착공량 계산
-            df_unPriority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt = self.ateReflectInst(df_unPriority, True, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt)
+            df_unPriority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt, limitCtCnt = self.ateReflectInst(df_unPriority, True, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt, limitCtCnt)
             df_addSmtAssy = pd.concat([df_priority, df_unPriority])
             df_dict = pd.DataFrame(data=dict_ate, index=[0])
             df_dict = df_dict.T
@@ -726,8 +757,18 @@ class MainThread(QObject):
                 df_secAlarmSummary['수량'] = '-'
                 df_secAlarmSummary['Message'] = '검사설비능력이 부족합니다. 생산 가능여부를 확인해 주세요.'
                 del df_secAlarmSummary['필요시간(초)']
+                # 분류 기타4 요약
+                df_etc4Alarm = df_alarmDetail[df_alarmDetail['분류'] == '기타4']
+                df_etc4AlarmSummary = df_etc4Alarm.groupby('MS CODE')['부족수량'].sum()
+                df_etc4AlarmSummary = df_etc4AlarmSummary.reset_index()
+                df_etc4AlarmSummary['수량'] = df_etc4AlarmSummary['부족수량']
+                df_etc4AlarmSummary['분류'] = '기타4'
+                df_etc4AlarmSummary['SMT ASSY'] = '-'
+                df_etc4AlarmSummary['검사호기'] = '-'
+                df_etc4AlarmSummary['부족 시간'] = '-'
+                df_etc4AlarmSummary['Message'] = '설정된 CT 제한대수보다 최소 착공 필요량이 많습니다. 설정된 CT 제한대수를 확인해주세요.'
                 # 위 알람을 병합
-                df_alarmSummary = pd.concat([df_firstAlarmSummary, df_secAlarmSummary])
+                df_alarmSummary = pd.concat([df_firstAlarmSummary, df_secAlarmSummary, df_etc4AlarmSummary])
                 # 기타 알람에 대한 추가
                 df_etcList = df_alarmDetail[(df_alarmDetail['분류'] == '기타1') | (df_alarmDetail['분류'] == '기타2') | (df_alarmDetail['분류'] == '기타3')]
                 df_etcList = df_etcList.drop_duplicates(['MS CODE'])
@@ -1012,7 +1053,7 @@ class PowerThread(QObject):
                                                                 "대상 검사시간(초)": 0,
                                                                 "필요시간(초)": 0,
                                                                 "완성예정일": df_data['Planned Prod. Completion date'][index]}])])
-        elif '2' in category:
+        elif '2-' in category:
             df_result = pd.concat([df_target,
                                     pd.DataFrame.from_records([{"No.": no,
                                                                 "분류": category,
@@ -1052,7 +1093,7 @@ class PowerThread(QObject):
                                                                 "필요시간(초)": 0,
                                                                 "완성예정일": df_data['Planned Prod. Completion date'][index]}])])
         elif category == '기타3':
-            return pd.concat([df_target,
+            df_result = pd.concat([df_target,
                                 pd.DataFrame.from_records([{"No.": no,
                                                             "분류": category,
                                                             "L/N": df_data['Linkage Number'][index],
@@ -1856,7 +1897,7 @@ class SpThread(QObject):
                                                                 "필요시간(초)": 0,
                                                                 "완성예정일": df_data['Planned Prod. Completion date'][index]}])])
         elif category == '기타3':
-            pd.concat([df_target,
+            df_result = pd.concat([df_target,
                         pd.DataFrame.from_records([{"No.": no,
                                                     "분류": category,
                                                     "L/N": df_data['Linkage Number'][index],
@@ -3210,7 +3251,7 @@ class Ui_MainWindow(QMainWindow):
         self.holdFileInputBtn.clicked.connect(self.holdWindow)
         self.runBtn.clicked.connect(self.startLeveling)
         # 디버그용 플래그
-        self.isDebug = False
+        self.isDebug = True
         self.isFileReady = False
         self.MaxOrderInputFilePath = r'.\\1차_착공량입력.xlsx'
         self.readMaxOrderFile()
@@ -3411,6 +3452,7 @@ class Ui_MainWindow(QMainWindow):
         else:
             SpSlaveFilePath = r'.\\input\\Master_File\\' + date + r'\\'
         mainAteCapaFilePath = r'.\\input\\DB\\Main\\' + roundTxt + '\\Main_ATE_Capacity_Table.xlsx'
+        ctCondFilePath = r'.\\input\\DB\\CT\\FAM3_CT_MST_Table.xlsx'
         pathList = [sosFilePath,
                     mainFilePath,
                     spFilePath,
@@ -3423,7 +3465,8 @@ class Ui_MainWindow(QMainWindow):
                     nonSpBLFilePath,
                     nonSpTerminalFilePath,
                     SpSlaveFilePath,
-                    mainAteCapaFilePath]
+                    mainAteCapaFilePath,
+                    ctCondFilePath]
         for path in pathList:
             if os.path.exists(path):
                 file = glob.glob(path)[0]
