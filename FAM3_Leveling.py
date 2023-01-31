@@ -719,6 +719,24 @@ class MainThread(QObject):
             self.mainReturnPb.emit(progress)
             if self.isDebug:
                 df_addSmtAssy.to_excel('.\\debug\\Main\\flow9.xlsx')
+            df_addSmtAssyCopy = pd.DataFrame(columns=df_addSmtAssy.columns)
+            for i in df_addSmtAssy.index:
+                div = df_addSmtAssy['미착공수주잔'][i] // 20
+                mod = df_addSmtAssy['미착공수주잔'][i] % 20
+                df_temp = pd.DataFrame(columns=df_addSmtAssy.columns)
+                for j in range(0, div + 1):
+                    if j != div:
+                        df_temp = df_temp.append(df_addSmtAssy.iloc[i])
+                        df_temp = df_temp.reset_index(drop=True)
+                        df_temp['미착공수주잔'][j] = 20
+                    elif mod > 0:
+                        df_temp = df_temp.append(df_addSmtAssy.iloc[i])
+                        df_temp = df_temp.reset_index(drop=True)
+                        df_temp['미착공수주잔'][j] = mod
+                df_addSmtAssyCopy = pd.concat([df_addSmtAssyCopy, df_temp])
+            df_addSmtAssy = df_addSmtAssyCopy.reset_index(drop=True)
+            if self.isDebug:
+                df_addSmtAssy.to_excel('.\\debug\\Main\\flow9-1.xlsx')
             dict_minContCopy = dict_minContCnt.copy()
             # 대표모델 별 최소착공 필요량을 기준으로 평준화 적용 착공량을 계산. 미착공수주잔에서 해당 평준화 적용 착공량을 제외한 수량은 잔여착공량으로 기재
             df_addSmtAssy['평준화_적용_착공량'] = 0
@@ -1703,7 +1721,6 @@ class PowerThread(QObject):
                 df_secTwoAlarmSummary['부족 시간'] = '-'
                 df_secTwoAlarmSummary['Message'] = '당일 최소 필요생산 대수에 대하여 생산 불가능한 모델이 있습니다. 모델별 제한 대수를 확인해 주세요.'
                 del df_secTwoAlarmSummary['부족수량']
-                
                 # 분류 기타2 요약
                 df_etc2Alarm = df_alarmDetail[df_alarmDetail['분류'] == '기타2']
                 df_etc2AlarmSummary = df_etc2Alarm.groupby('MS CODE')['부족수량'].sum()
@@ -2542,7 +2559,7 @@ class SpThread(QObject):
                 else:
                     workDay = df_addSmtAssy['남은 워킹데이'][i]
                 if str(df_addSmtAssy['1차_MAX_그룹'][i]) != '' and str(df_addSmtAssy['1차_MAX_그룹'][i]) != 'nan' and str(df_addSmtAssy['1차_MAX_그룹'][i]) != '-':
-                    dict_minContCnt[df_addSmtAssy['대표모델'][i]] = [df_addSmtAssy['1차_MAX'][i], df_addSmtAssy['Planned Prod. Completion date'][i]]                
+                    dict_minContCnt[df_addSmtAssy['대표모델'][i]] = [df_addSmtAssy['1차_MAX'][i], df_addSmtAssy['Planned Prod. Completion date'][i]]
                 elif len(dict_minContCnt) > 0:
                     if df_addSmtAssy['대표모델'][i] in dict_minContCnt:
                         if dict_minContCnt[df_addSmtAssy['대표모델'][i]][0] < math.ceil(dict_integCnt[df_addSmtAssy['대표모델'][i]] / workDay):
@@ -3508,7 +3525,7 @@ class Ui_MainWindow(QMainWindow):
         self.holdFileInputBtn.clicked.connect(self.holdWindow)
         self.runBtn.clicked.connect(self.startLeveling)
         # 디버그용 플래그
-        self.isDebug = False
+        self.isDebug = True
         self.isFileReady = False
         self.MaxOrderInputFilePath = r'.\\1차_착공량입력.xlsx'
         self.readMaxOrderFile()
