@@ -61,7 +61,7 @@ class MainThread(QObject):
                     if df['WorkingDay'][i] == 1:
                         workDay += 1
         else:
-            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 확인해주세요.')
+            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 대한민국 휴일을 기준으로 근무일을 계산합니다. 이후, 해당 파일에 사력을 추가해주세요')
         return workDay
 
     # 콤마 삭제용 내부함수
@@ -870,12 +870,12 @@ class MainThread(QObject):
                         if len(df_unPriority) > 0:
                             df_unPriority = pd.merge(df_unPriority, df_addSmtAssy[~df_addSmtAssy['INSPECTION_EQUIPMENT'].str.contains(ate)], how='inner')
                             df_unPriority = df_unPriority[df_unPriority['긴급오더'].isnull()]
-                            df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
+                            # df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
                         else:
                             df_unPriority = df_addSmtAssy[~df_addSmtAssy['INSPECTION_EQUIPMENT'].str.contains(ate)]
                             df_unPriority = df_unPriority[df_unPriority['긴급오더'].isnull()]
-                            df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
-                        df_priority = df_priority.drop_duplicates(['Linkage Number'])
+                            # df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
+                        # df_priority = df_priority.drop_duplicates(['Linkage Number'])
                 else:
                     df_unPriority = df_addSmtAssy.copy()
                 if self.isDebug:
@@ -1235,7 +1235,7 @@ class PowerThread(QObject):
                     if df['WorkingDay'][i] == 1:
                         workDay += 1
         else:
-            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 확인해주세요.')
+            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 대한민국 휴일을 기준으로 근무일을 계산합니다. 이후, 해당 파일에 사력을 추가해주세요')
         return workDay
 
     # 콤마 삭제용 내부함수
@@ -2164,10 +2164,23 @@ class PowerThread(QObject):
                 self.powerReturnPb.emit(progress)
                 if self.isDebug:
                     df_mergeOrderResult.to_excel('.\\debug\\Power\\flow16.xlsx')
+                df_mergeOrderResult = df_mergeOrderResult.reset_index()
+                # 연속으로 같은 검사설비가 오지 않도록 순서를 재조정
+                for i in df_mergeOrderResult.index:
+                    if df_mergeOrderResult['긴급오더'][i] != '대상':
+                        if (i != 0 and (df_mergeOrderResult['상세구분'][i] == df_mergeOrderResult['상세구분'][i - 1])):
+                            for j in df_mergeOrderResult.index:
+                                if df_mergeOrderResult['긴급오더'][j] != '대상':
+                                    if ((j != 0 and j < len(df_mergeOrderResult) - 1) and (df_mergeOrderResult['상세구분'][i] != df_mergeOrderResult['상세구분'][j + 1]) and (df_mergeOrderResult['상세구분'][i] != df_mergeOrderResult['상세구분'][j])):
+                                        df_mergeOrderResult['level_0'][i] = (float(df_mergeOrderResult['level_0'][j]) + float(df_mergeOrderResult['level_0'][j + 1])) / 2
+                                        df_mergeOrderResult = df_mergeOrderResult.sort_values(by=['level_0'], ascending=[True])
+                                        df_mergeOrderResult = df_mergeOrderResult.reset_index(drop=True)
+                                        break
+
                 df_unCt['index'] = 0
                 df_unCt['사이클그룹'] = 0
                 df_mergeOrderResult = pd.concat([df_unCt, df_mergeOrderResult])
-                df_mergeOrderResult = df_mergeOrderResult.reset_index()
+                df_mergeOrderResult = df_mergeOrderResult.reset_index(drop=True)
                 progress += round(maxPb / 20)
                 self.powerReturnPb.emit(progress)
                 if self.isDebug:
@@ -2261,7 +2274,7 @@ class SpThread(QObject):
                     if df['WorkingDay'][i] == 1:
                         workDay += 1
         else:
-            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 확인해주세요.')
+            raise Exception(f'FY{today[2:4]}_Calendar.xlsx 파일에 {str(dtComp)} 날짜의 워킹데이 데이터가 없습니다. 대한민국 휴일을 기준으로 근무일을 계산합니다. 이후, 해당 파일에 사력을 추가해주세요')
         return workDay
 
     # 콤마 삭제용 내부함수
