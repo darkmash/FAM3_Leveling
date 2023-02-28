@@ -341,14 +341,14 @@ class MainThread(QObject):
             # 디버그로 남은착공량의 과정을 보기 위해 데이터프레임에 기록
             df_input['남은착공량'][i] = moduleMaxCnt
             # 검사시간이 있는 모델만 적용
-            if (str(df_input['TotalTime'][i]) != '' and str(df_input['TotalTime'][i]) != 'nan'):
+            if (str(df_input['TotalTime'][i]) != '') and (str(df_input['TotalTime'][i]) != 'nan'):
                 # 검사설비가 있는 모델만 적용
-                if (str(df_input['INSPECTION_EQUIPMENT'][i]) != '' and str(df_input['INSPECTION_EQUIPMENT'][i]) != 'nan'):
+                if (str(df_input['INSPECTION_EQUIPMENT'][i]) != '') and (str(df_input['INSPECTION_EQUIPMENT'][i]) != 'nan'):
                     # 임시 검사시간과 검사설비를 가지고 있는 변수 선언
                     tempTime = 0
                     ateName = ''
                     # 긴급오더 or 당일착공 대상은 검사설비 능력이 부족하여도 강제 착공. 그리고 알람을 기록
-                    if (df_input['긴급오더'][i] == '대상' or df_input['당일착공'][i] == '대상'):
+                    if (str(df_input['긴급오더'][i]) == '대상') or (str(df_input['당일착공'][i]) == '대상'):
                         # 대상 검사설비를 한개씩 분할
                         ateList = list(df_input['INSPECTION_EQUIPMENT'][i])
                         dict_temp = {}
@@ -391,7 +391,8 @@ class MainThread(QObject):
                             # break
                         # 검사설비능력이 0미만일 경우, 알람 출력
                         if ateName != '' and dict_ate[ateName] < 0:
-                            df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '2', df_input, i, '-', 0)
+                            df_alarmDetail, alarmDetailNo = self.concatAlarmDetail(df_alarmDetail, alarmDetailNo, '2', df_input, i, '-', math.floor((0 - dict_ate[ateName]) / df_input['TotalTime'][i]))
+                            dict_ate[ateName] = 0
                         # 긴급오더 or 당일착공이 아닌 경우는 검사설비 능력을 반영하여 착공 실시
                     else:
                         # 긴급오더 처리 시, 0미만으로 떨어진 각 카운터를 0으로 초기화
@@ -619,9 +620,9 @@ class MainThread(QObject):
                 # 남은 워킹데이 체크 및 컬럼 추가
                 for i in df_MergeLink.index:
                     df_MergeLink['남은 워킹데이'][i] = self.checkWorkDay(dfCalendar, today, df_MergeLink['Planned Prod. Completion date'][i])
-                    if df_MergeLink['남은 워킹데이'][i] < 0:
+                    if df_MergeLink['남은 워킹데이'][i] < 1:
                         df_MergeLink['긴급오더'][i] = '대상'
-                    elif df_MergeLink['남은 워킹데이'][i] == 0:
+                    elif df_MergeLink['남은 워킹데이'][i] == 1:
                         df_MergeLink['당일착공'][i] = '대상'
                 progress += round(maxPb / 21)
                 self.mainReturnPb.emit(progress)
@@ -870,6 +871,7 @@ class MainThread(QObject):
                 df_addSmtAssy['임시수량_잔여'] = 0
                 df_addSmtAssy['설비능력반영_착공량_잔여'] = 0
                 df_addSmtAssy['남은착공량'] = 0
+                df_addSmtAssy = df_addSmtAssy.reset_index()
                 # 검사설비 우선사용 계산을 위해 데이터프레임 신규 선언
                 df_priority = pd.DataFrame(columns=df_addSmtAssy.columns)
                 df_unPriority = pd.DataFrame(columns=df_addSmtAssy.columns)
@@ -878,15 +880,18 @@ class MainThread(QObject):
                     for ate in list_priorityAte:
                         df_priority = pd.concat([df_priority, df_addSmtAssy[df_addSmtAssy['INSPECTION_EQUIPMENT'].str.contains(ate)]])
                         df_priority = pd.concat([df_priority, df_addSmtAssy[df_addSmtAssy['긴급오더'].notnull()]])
+                        df_priority = pd.concat([df_priority, df_addSmtAssy[df_addSmtAssy['당일착공'].str.contains('대상')]])
                         if len(df_unPriority) > 0:
                             df_unPriority = pd.merge(df_unPriority, df_addSmtAssy[~df_addSmtAssy['INSPECTION_EQUIPMENT'].str.contains(ate)], how='inner')
                             df_unPriority = df_unPriority[df_unPriority['긴급오더'].isnull()]
-                            # df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
+                            df_unPriority = df_unPriority[~df_unPriority['당일착공'].str.contains('대상')]
+                            df_unPriority = df_unPriority.drop_duplicates(['index'])
                         else:
                             df_unPriority = df_addSmtAssy[~df_addSmtAssy['INSPECTION_EQUIPMENT'].str.contains(ate)]
                             df_unPriority = df_unPriority[df_unPriority['긴급오더'].isnull()]
-                            # df_unPriority = df_unPriority.drop_duplicates(['Linkage Number'])
-                        # df_priority = df_priority.drop_duplicates(['Linkage Number'])
+                            df_unPriority = df_unPriority[~df_unPriority['당일착공'].str.contains('대상')]
+                            df_unPriority = df_unPriority.drop_duplicates(['index'])
+                        df_priority = df_priority.drop_duplicates(['index'])
                 else:
                     df_unPriority = df_addSmtAssy.copy()
                 if self.isDebug:
@@ -896,6 +901,8 @@ class MainThread(QObject):
                 df_limitCtCond = pd.read_excel(self.list_masterFile[13])
                 limitCtCnt = df_limitCtCond[df_limitCtCond['상세구분'] == 'MAIN']['허용수량'].values[0]
                 # 설비능력 반영 착공량 계산
+                # print(df_priority.head())
+                # print(df_unPriority.head())
                 df_priority, dict_ate, alarmDetailNo, df_alarmDetail, self.moduleMaxCnt, limitCtCnt = self.ateReflectInst(df_priority, False, dict_ate, df_alarmDetail, alarmDetailNo, self.moduleMaxCnt, limitCtCnt)
                 # if self.isDebug:
                 #     df_priority.to_excel('.\\debug\\Main\\flow11-3.xlsx')
@@ -1711,9 +1718,9 @@ class PowerThread(QObject):
                 # 남은 워킹데이 체크 및 컬럼 추가
                 for i in df_MergeLink.index:
                     df_MergeLink['남은 워킹데이'][i] = self.checkWorkDay(dfCalendar, today, df_MergeLink['Planned Prod. Completion date'][i])
-                    if df_MergeLink['남은 워킹데이'][i] < 0:
+                    if df_MergeLink['남은 워킹데이'][i] < 1:
                         df_MergeLink['긴급오더'][i] = '대상'
-                    elif df_MergeLink['남은 워킹데이'][i] == 0:
+                    elif df_MergeLink['남은 워킹데이'][i] == 1:
                         df_MergeLink['당일착공'][i] = '대상'
                 df_MergeLink['Linkage Number'] = df_MergeLink['Linkage Number'].astype(str)
                 # 홀딩오더는 제외
@@ -2848,9 +2855,9 @@ class SpThread(QObject):
                 # 남은 워킹데이 체크 및 컬럼 추가
                 for i in df_MergeLink.index:
                     df_MergeLink['남은 워킹데이'][i] = self.checkWorkDay(dfCalendar, today, df_MergeLink['Planned Prod. Completion date'][i])
-                    if df_MergeLink['남은 워킹데이'][i] < 0:
+                    if df_MergeLink['남은 워킹데이'][i] < 1:
                         df_MergeLink['긴급오더'][i] = '대상'
-                    elif df_MergeLink['남은 워킹데이'][i] == 0:
+                    elif df_MergeLink['남은 워킹데이'][i] == 1:
                         df_MergeLink['당일착공'][i] = '대상'
                 df_MergeLink['Linkage Number'] = df_MergeLink['Linkage Number'].astype(str)
                 df_MergeLink['MODEL'] = df_MergeLink['MS Code'].str[:7]
@@ -4055,7 +4062,7 @@ class Ui_MainWindow(QMainWindow):
         self.holdFileInputBtn.clicked.connect(self.holdWindow)
         self.runBtn.clicked.connect(self.startLeveling)
         # 디버그용 플래그
-        self.isDebug = True
+        self.isDebug = False
         self.isFileReady = False
         self.MaxOrderInputFilePath = r'.\\1차_착공량입력.xlsx'
         self.etcOrderInputFilePath = r'.\\2차_착공량입력.xlsx'
@@ -4085,7 +4092,7 @@ class Ui_MainWindow(QMainWindow):
 
     def retranslateUi(self, MainWindow):
         _translate = QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate('MainWindow', 'FA-M3 착공 평준화 자동화 프로그램 Rev0.12'))
+        MainWindow.setWindowTitle(_translate('MainWindow', 'FA-M3 착공 평준화 자동화 프로그램 Rev0.13'))
         MainWindow.setWindowIcon(QIcon('.\\Logo\\logo.png'))
         self.label_round.setText(_translate('MainWindow', '착공 회차 선택:'))
         self.label.setText(_translate('MainWindow', '메인 생산대수:'))
