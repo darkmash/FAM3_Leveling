@@ -1548,8 +1548,9 @@ class PowerThread(QObject):
                         self.moduleMaxCnt -= df_input[resultCol2][i]
                         dict_ratioCnt[str(df_input['상세구분'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
                         dict_alarmRatioCnt[str(df_input['상세구분'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
-                        dict_maxCnt[str(df_input['상세구분'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
-                        dict_alarmMaxCnt[str(df_input['상세구분'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
+                        if str(df_input['MAX대수'][i]) != '' and str(df_input['MAX대수'][i]) != 'nan' and str(df_input['MAX대수'][i]) != '-':
+                            dict_maxCnt[str(df_input['MODEL'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
+                            dict_alarmMaxCnt[str(df_input['MODEL'][i])] -= float(df_input[instCol][i]) * df_input['공수'][i]
                         # CT사양일 경우, CT제한대수를 차감
                         if '/CT' in df_input['MS Code'][i]:
                             limitCtCnt -= df_input[resultCol2][i]
@@ -4092,7 +4093,7 @@ class Ui_MainWindow(QMainWindow):
 
     def retranslateUi(self, MainWindow):
         _translate = QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate('MainWindow', 'FA-M3 착공 평준화 자동화 프로그램 Rev0.13'))
+        MainWindow.setWindowTitle(_translate('MainWindow', 'FA-M3 착공 평준화 자동화 프로그램 Rev0.14'))
         MainWindow.setWindowIcon(QIcon('.\\Logo\\logo.png'))
         self.label_round.setText(_translate('MainWindow', '착공 회차 선택:'))
         self.label.setText(_translate('MainWindow', '메인 생산대수:'))
